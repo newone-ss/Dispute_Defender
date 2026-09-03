@@ -1,0 +1,159 @@
+[
+  {
+    "id": "GT-001",
+    "dispute_id": "disp_eval_001",
+    "amount": 4200.0,
+    "expected_decision": "AUTO_CONTESTED",
+    "expected_min_score": 80.0,
+    "category": "legitimate_delivery",
+    "telemetry": {
+      "otp": {"verified": true},
+      "geofence": {"distance_km": 0.4},
+      "weight": {"shipped_g": 520, "delivered_g": 515},
+      "delivery_signature": true,
+      "device_fingerprint_match": true,
+      "defect_ticket_open": false
+    }
+  },
+  {
+    "id": "GT-002",
+    "dispute_id": "disp_eval_002",
+    "amount": 7800.0,
+    "expected_decision": "AUTO_CONTESTED",
+    "expected_min_score": 80.0,
+    "category": "legitimate_delivery",
+    "telemetry": {
+      "otp": {"verified": true},
+      "geofence": {"distance_km": 1.2},
+      "weight": {"shipped_g": 1200, "delivered_g": 1190},
+      "delivery_signature": true,
+      "device_fingerprint_match": true,
+      "defect_ticket_open": false
+    }
+  },
+  {
+    "id": "GT-003",
+    "dispute_id": "disp_eval_003",
+    "amount": 2900.0,
+    "expected_decision": "AUTO_ACCEPTED",
+    "expected_min_score": 0.0,
+    "category": "consumer_defect_ticket",
+    "telemetry": {
+      "otp": {"verified": true},
+      "geofence": {"distance_km": 0.5},
+      "weight": {"shipped_g": 500, "delivered_g": 500},
+      "delivery_signature": true,
+      "defect_ticket_open": true,
+      "support_ticket": {"open": true, "ticket_id": "TICK-4401", "issue": "Missing internal power supply cable"}
+    }
+  },
+  {
+    "id": "GT-004",
+    "dispute_id": "disp_eval_004",
+    "amount": 6400.0,
+    "expected_decision": "AUTO_ACCEPTED",
+    "expected_min_score": 0.0,
+    "category": "transit_weight_loss",
+    "telemetry": {
+      "otp": {"verified": true},
+      "geofence": {"distance_km": 0.9},
+      "weight": {"shipped_g": 1500, "delivered_g": 1220},
+      "delivery_signature": true,
+      "defect_ticket_open": false
+    }
+  },
+  {
+    "id": "GT-005",
+    "dispute_id": "disp_eval_005",
+    "amount": 12500.0,
+    "expected_decision": "AUTO_ACCEPTED",
+    "expected_min_score": 0.0,
+    "category": "fraud_no_delivery",
+    "telemetry": {
+      "otp": {"verified": false},
+      "geofence": {"distance_km": 42.0},
+      "weight": {"shipped_g": 400, "delivered_g": 0},
+      "delivery_signature": false,
+      "device_fingerprint_match": false,
+      "defect_ticket_open": false
+    }
+  },
+  {
+    "id": "GT-006",
+    "dispute_id": "disp_eval_006",
+    "amount": 3500.0,
+    "expected_decision": "NEEDS_REVIEW",
+    "expected_min_score": 40.0,
+    "category": "ambiguous_boundary",
+    "telemetry": {
+      "otp": {"verified": false},
+      "geofence": {"distance_km": 8.5},
+      "weight": {"shipped_g": 500, "delivered_g": 490},
+      "delivery_signature": true,
+      "device_fingerprint_match": false,
+      "defect_ticket_open": false
+    }
+  },
+  {
+    "id": "GT-007",
+    "dispute_id": "disp_eval_007",
+    "amount": 18200.0,
+    "expected_decision": "AUTO_CONTESTED",
+    "expected_min_score": 80.0,
+    "category": "legitimate_delivery",
+    "telemetry": {
+      "otp": {"verified": true},
+      "geofence": {"distance_km": 0.2},
+      "weight": {"shipped_g": 2400, "delivered_g": 2390},
+      "delivery_signature": true,
+      "device_fingerprint_match": true,
+      "defect_ticket_open": false
+    }
+  },
+  {
+    "id": "GT-008",
+    "dispute_id": "disp_eval_008",
+    "amount": 5100.0,
+    "expected_decision": "AUTO_ACCEPTED",
+    "expected_min_score": 0.0,
+    "category": "consumer_defect_ticket",
+    "telemetry": {
+      "otp": {"verified": true},
+      "geofence": {"distance_km": 1.0},
+      "weight": {"shipped_g": 700, "delivered_g": 695},
+      "delivery_signature": true,
+      "defect_ticket_open": true
+    }
+  },
+  {
+    "id": "GT-009",
+    "dispute_id": "disp_eval_009",
+    "amount": 9200.0,
+    "expected_decision": "AUTO_CONTESTED",
+    "expected_min_score": 80.0,
+    "category": "legitimate_delivery",
+    "telemetry": {
+      "otp": {"verified": true},
+      "geofence": {"distance_km": 2.1},
+      "weight": {"shipped_g": 850, "delivered_g": 840},
+      "delivery_signature": true,
+      "device_fingerprint_match": true,
+      "defect_ticket_open": false
+    }
+  },
+  {
+    "id": "GT-010",
+    "dispute_id": "disp_eval_010",
+    "amount": 1600.0,
+    "expected_decision": "AUTO_ACCEPTED",
+    "expected_min_score": 0.0,
+    "category": "transit_weight_loss",
+    "telemetry": {
+      "otp": {"verified": true},
+      "geofence": {"distance_km": 1.4},
+      "weight": {"shipped_g": 600, "delivered_g": 410},
+      "delivery_signature": true,
+      "defect_ticket_open": false
+    }
+  }
+]
