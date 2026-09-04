@@ -67,7 +67,7 @@ export const Disputes: React.FC = () => {
             <span>⚔️</span> Disputes & Telemetry Queue
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            Real-time audit checklist of all intercepted chargebacks with physical delivery proofs.
+            Real-time audit of intercepted chargebacks with OBD routing, RAG fairness gate, and physical delivery proofs.
           </p>
         </div>
 
@@ -138,7 +138,12 @@ export const Disputes: React.FC = () => {
                 disputes.map((d) => (
                   <tr key={d.id} className="hover:bg-slate-800/30 transition">
                     <td className="p-4">
-                      <div className="font-bold text-white">{d.dispute_id}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-white">{d.dispute_id}</span>
+                        {d.delivery_type === "OPEN_BOX" && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-violet-500/20 text-violet-300 border border-violet-600/30">OBD</span>
+                        )}
+                      </div>
                       <div className="text-[10px] text-slate-400 font-normal mt-0.5">
                         Order: <span className="text-slate-300">{d.order_id || "N/A"}</span> • {d.reason_code}
                       </div>
@@ -170,6 +175,8 @@ export const Disputes: React.FC = () => {
                         <TelemetryBadge type="geofence" value={d.geofence_distance_km} />
                         <TelemetryBadge type="weight" value={d.weight_loss_g} />
                         <TelemetryBadge type="defect" value={d.defect_ticket_open} />
+                        <TelemetryBadge type="obd" value={d.delivery_type} />
+                        <TelemetryBadge type="rag" value={d.rag_fairness_triggered} />
                       </div>
                     </td>
 
@@ -179,6 +186,11 @@ export const Disputes: React.FC = () => {
                         {d.fairness_gate_triggered && (
                           <span className="text-[10px] text-rose-400 font-medium">
                             Fairness Gate: Zero Liability
+                          </span>
+                        )}
+                        {d.rag_fairness_triggered && !d.fairness_gate_triggered && (
+                          <span className="text-[10px] text-orange-400 font-medium">
+                            RAG: Prior Complaint
                           </span>
                         )}
                       </div>

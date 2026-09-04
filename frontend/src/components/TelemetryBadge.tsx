@@ -1,7 +1,7 @@
 import React from "react";
 
 interface TelemetryBadgeProps {
-  type: "otp" | "geofence" | "weight" | "defect" | "status";
+  type: "otp" | "geofence" | "weight" | "defect" | "status" | "obd" | "rag";
   value?: any;
   className?: string;
 }
@@ -75,8 +75,11 @@ export const TelemetryBadge: React.FC<TelemetryBadgeProps> = ({
         </span>
       );
     }
-    const isClose = dist <= 5.0;
-    const isMedium = dist <= 15.0;
+    // Display in meters if < 1km, otherwise in km
+    const distM = dist * 1000;
+    const isClose = distM <= 100;
+    const isMedium = distM <= 500;
+    const displayStr = distM < 1000 ? `${Math.round(distM)}m` : `${dist.toFixed(1)}km`;
     return (
       <span
         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium border ${
@@ -86,9 +89,9 @@ export const TelemetryBadge: React.FC<TelemetryBadgeProps> = ({
             ? "bg-amber-950/70 text-amber-300 border-amber-700/50"
             : "bg-rose-950/70 text-rose-300 border-rose-700/50"
         }`}
-        title={`Delivery coordinate distance from billing address: ${dist} km`}
+        title={`Delivery offset: ${Math.round(distM)}m (${dist.toFixed(2)}km) from billing address`}
       >
-        <span>📍</span> {dist.toFixed(1)} km
+        <span>📍</span> {displayStr}
       </span>
     );
   }
@@ -113,6 +116,28 @@ export const TelemetryBadge: React.FC<TelemetryBadgeProps> = ({
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-indigo-950/80 text-indigo-300 border border-indigo-700/60" title="Open customer defect support ticket active">
         <span>🎫</span> Support Ticket Open
+      </span>
+    );
+  }
+
+  if (type === "obd") {
+    const deliveryType = String(value || "STANDARD").toUpperCase();
+    if (deliveryType === "OPEN_BOX") {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-violet-950/80 text-violet-300 border border-violet-600/50" title="Open Box Delivery — physical doorstep inspection">
+          <span>📦</span> OBD
+        </span>
+      );
+    }
+    return null; // Don't render badge for standard delivery
+  }
+
+  if (type === "rag") {
+    const isTriggered = Boolean(value);
+    if (!isTriggered) return null;
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-950/80 text-rose-300 border border-rose-600/50" title="RAG Omnichannel Fairness Gate: Prior genuine complaint detected">
+        <span>🤖</span> RAG Complaint
       </span>
     );
   }

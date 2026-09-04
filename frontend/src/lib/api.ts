@@ -6,6 +6,7 @@
  * - /api/v1/dashboard/disputes
  * - /api/v1/dashboard/disputes/:id
  * - /api/v1/dashboard/disputes/:id/override
+ * - /api/v1/dashboard/disputes/:id/policy-checklist
  * - /api/v1/dashboard/simulate
  */
 
@@ -20,14 +21,29 @@ export interface Dispute {
   reason_code: string | null;
   amount: number;
   confidence_score: number | null;
+
+  // Delivery type (OBD)
+  delivery_type: string | null;
+
+  // Telemetry
   otp_verified: boolean | null;
   geofence_distance_km: number | null;
+  geofence_distance_m: number | null;
   shipped_weight_g: number | null;
   delivered_weight_g: number | null;
   weight_loss_g: number | null;
   defect_ticket_open: boolean;
   fairness_gate_triggered: boolean;
   fairness_reason: string | null;
+
+  // RAG fairness gate
+  rag_fairness_triggered: boolean;
+  rag_fairness_summary: string | null;
+
+  // Policy RAG
+  policy_checklist_json: string | null;
+
+  // Evidence & OCR
   evidence_text: string | null;
   document_id: string | null;
   ocr_manifest_json: string | null;
@@ -59,10 +75,22 @@ export interface ManualOverrideResponse {
   message: string;
 }
 
+export interface PolicyChecklist {
+  reason_code: string;
+  delivery_type: string;
+  checklist: {
+    evidence_type: string;
+    description: string;
+    required: boolean;
+    regulatory_source: string | null;
+  }[];
+  regulatory_citations: string[];
+  retrieval_confidence: number;
+}
+
 export async function fetchMetrics(): Promise<Metrics> {
   const res = await fetch(`${API_BASE}/metrics`, { cache: "no-store" });
   if (!res.ok) {
-    // Fallback to legacy path if proxy rules differ
     const fallbackRes = await fetch("/disputes/metrics", { cache: "no-store" });
     if (!fallbackRes.ok) throw new Error(`Failed to fetch metrics: ${res.status}`);
     return fallbackRes.json();
@@ -103,6 +131,12 @@ export async function fetchDisputeDetail(disputeId: string): Promise<Dispute> {
   return res.json();
 }
 
+export async function fetchPolicyChecklist(disputeId: string): Promise<PolicyChecklist> {
+  const res = await fetch(`${API_BASE}/disputes/${disputeId}/policy-checklist`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Failed to fetch policy checklist: ${res.status}`);
+  return res.json();
+}
+
 export async function manualOverride(disputeId: string): Promise<ManualOverrideResponse> {
   const res = await fetch(`${API_BASE}/disputes/${disputeId}/override`, {
     method: "POST",
@@ -124,8 +158,18 @@ export async function manualOverride(disputeId: string): Promise<ManualOverrideR
   return res.json();
 }
 
+export type SimulationScenario =
+  | "winnable_clean"
+  | "customer_defect_ticket"
+  | "transit_weight_loss"
+  | "ambiguous_needs_review"
+  | "fraud_no_otp"
+  | "obd_clean_delivery"
+  | "obd_defective_open_box"
+  | "rag_prior_complaint";
+
 export async function simulateWebhook(
-  scenario: "winnable_clean" | "customer_defect_ticket" | "transit_weight_loss" | "ambiguous_needs_review" | "fraud_no_otp",
+  scenario: SimulationScenario,
   amount: number = 3499.0,
   reasonCode: string = "product_not_received"
 ) {

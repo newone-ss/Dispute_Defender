@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { fetchMetrics, fetchDisputes, simulateWebhook, manualOverride } from "../lib/api";
-import type { Metrics, Dispute } from "../lib/api";
+import type { Metrics, Dispute, SimulationScenario } from "../lib/api";
 import { MetricCards } from "../components/MetricCards";
 import { TelemetryBadge } from "../components/TelemetryBadge";
 import { AuditModal } from "../components/AuditModal";
@@ -32,12 +32,12 @@ export const Dashboard: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const handleSimulate = async (scenario: any) => {
+  const handleSimulate = async (scenario: SimulationScenario) => {
     setSimulating(true);
     setStatusMessage(null);
     try {
       await simulateWebhook(scenario);
-      setStatusMessage(`✨ Webhook simulated for scenario '${scenario}'. Verification pipeline running.`);
+      setStatusMessage(`✨ Webhook simulated for scenario '${scenario}'. Hybrid RAG + Deterministic pipeline running.`);
       setTimeout(loadData, 1200);
     } catch (err: any) {
       setStatusMessage(`❌ Simulation failed: ${err.message}`);
@@ -67,7 +67,7 @@ export const Dashboard: React.FC = () => {
             <span>🛡️</span> Financial Risk & Chargeback Defense
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            Automated courier telemetry audit, NPCI UDIR evidence drafting, and zero-liability fairness gating.
+            Hybrid RAG + Deterministic audit pipeline with OBD routing, omnichannel fairness gating, and NPCI UDIR evidence drafting.
           </p>
         </div>
 
@@ -88,10 +88,10 @@ export const Dashboard: React.FC = () => {
           <div>
             <div className="flex items-center gap-2">
               <span className="text-amber-400 font-bold text-xs uppercase tracking-wider">Interactive Webhook Simulator</span>
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-500/20 text-blue-300">FastAPI BackgroundTasks</span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-500/20 text-blue-300">Hybrid RAG + Deterministic</span>
             </div>
             <p className="text-xs text-slate-400 mt-1">
-              Dispatch simulated Razorpay dispute webhooks with varying courier telemetry to test the automated pipeline.
+              Dispatch simulated disputes with OBD routing, RAG fairness gate, and meter-precision GPS telemetry.
             </p>
           </div>
 
@@ -101,28 +101,49 @@ export const Dashboard: React.FC = () => {
               disabled={simulating}
               className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-600/30 transition disabled:opacity-50"
             >
-              🚀 Clean Delivery (Score &gt; 80)
+              🚀 Clean Delivery
+            </button>
+            <button
+              onClick={() => handleSimulate("obd_clean_delivery")}
+              disabled={simulating}
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-violet-600/20 text-violet-300 border border-violet-500/30 hover:bg-violet-600/30 transition disabled:opacity-50"
+            >
+              📦 OBD Clean
+            </button>
+            <button
+              onClick={() => handleSimulate("obd_defective_open_box")}
+              disabled={simulating}
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-violet-600/20 text-violet-300 border border-violet-500/30 hover:bg-violet-600/30 transition disabled:opacity-50"
+            >
+              📦 OBD Defective
+            </button>
+            <button
+              onClick={() => handleSimulate("rag_prior_complaint")}
+              disabled={simulating}
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-orange-600/20 text-orange-300 border border-orange-500/30 hover:bg-orange-600/30 transition disabled:opacity-50"
+            >
+              🤖 RAG Complaint
             </button>
             <button
               onClick={() => handleSimulate("customer_defect_ticket")}
               disabled={simulating}
               className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-rose-600/20 text-rose-300 border border-rose-500/30 hover:bg-rose-600/30 transition disabled:opacity-50"
             >
-              🎫 Support Ticket (Fairness Gate)
+              🎫 Defect Ticket
             </button>
             <button
               onClick={() => handleSimulate("transit_weight_loss")}
               disabled={simulating}
               className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-amber-600/20 text-amber-300 border border-amber-500/30 hover:bg-amber-600/30 transition disabled:opacity-50"
             >
-              ⚖️ &gt;100g Loss (Fairness Gate)
+              ⚖️ Weight Loss
             </button>
             <button
               onClick={() => handleSimulate("ambiguous_needs_review")}
               disabled={simulating}
               className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition disabled:opacity-50"
             >
-              ⚠️ Ambiguous (Needs Review)
+              ⚠️ Ambiguous
             </button>
           </div>
         </div>
@@ -142,7 +163,7 @@ export const Dashboard: React.FC = () => {
             <span className="text-lg font-black text-white">{metrics?.auto_contested_count || 0}</span>
           </div>
           <div className="text-xs text-slate-400">
-            Score &gt; 80. Conclusive OTP match, verified GPS perimeter, and intact weight. Representment uploaded to Documents API.
+            Score &gt; 80 or OBD Override. Conclusive telemetry, verified GPS ≤100m, and intact weight. Representment uploaded.
           </div>
           <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
             <div
@@ -164,7 +185,7 @@ export const Dashboard: React.FC = () => {
             <span className="text-lg font-black text-white">{metrics?.needs_review_count || 0}</span>
           </div>
           <div className="text-xs text-slate-400">
-            Score 40–80. Inconclusive or secondary perimeter delivery. Requires merchant risk officer manual verification.
+            Score 40–80 or standard defective merchandise. Requires merchant risk officer manual verification.
           </div>
           <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
             <div
@@ -186,7 +207,7 @@ export const Dashboard: React.FC = () => {
             <span className="text-lg font-black text-white">{metrics?.auto_accepted_count || 0}</span>
           </div>
           <div className="text-xs text-slate-400">
-            Fairness Gate (defect/loss) or Score &lt; 40. Released liability via Accept API, saving ₹1,500 bank penalty per dispute.
+            Fairness Gate (defect/loss/RAG complaint) or Score &lt; 40. Released liability, saving ₹1,500 bank penalty per dispute.
           </div>
           <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
             <div
@@ -208,7 +229,7 @@ export const Dashboard: React.FC = () => {
         <div className="p-5 border-b border-slate-800 flex items-center justify-between">
           <div>
             <h2 className="text-base font-bold text-white tracking-tight">Recent Dispute Interceptions</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Live chargebacks audited with physical courier telemetry signals</p>
+            <p className="text-xs text-slate-400 mt-0.5">Live chargebacks audited with hybrid RAG + physical courier telemetry</p>
           </div>
           <a
             href="/disputes"
@@ -234,7 +255,12 @@ export const Dashboard: React.FC = () => {
               {recentDisputes.map((d) => (
                 <tr key={d.id} className="hover:bg-slate-800/30 transition">
                   <td className="p-4 font-bold text-white">
-                    <div>{d.dispute_id}</div>
+                    <div className="flex items-center gap-2">
+                      {d.dispute_id}
+                      {d.delivery_type === "OPEN_BOX" && (
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-violet-500/20 text-violet-300 border border-violet-600/30">OBD</span>
+                      )}
+                    </div>
                     <div className="text-[10px] text-slate-500 font-normal">{d.reason_code}</div>
                   </td>
                   <td className="p-4 font-bold text-slate-100">
@@ -259,6 +285,8 @@ export const Dashboard: React.FC = () => {
                       <TelemetryBadge type="geofence" value={d.geofence_distance_km} />
                       <TelemetryBadge type="weight" value={d.weight_loss_g} />
                       <TelemetryBadge type="defect" value={d.defect_ticket_open} />
+                      <TelemetryBadge type="obd" value={d.delivery_type} />
+                      <TelemetryBadge type="rag" value={d.rag_fairness_triggered} />
                     </div>
                   </td>
                   <td className="p-4 font-sans">
