@@ -1,114 +1,61 @@
 @import "tailwindcss";
 
-/* ── Custom Theme Tokens & Glassmorphism ───────────────────────────── */
-:root {
-  --color-primary: #072654;
-  --color-primary-light: #1a3a6e;
-  --color-accent: #528ff0;
-  --color-accent-glow: #6ea8ff;
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
-  --color-surface: #0a0e1a;
-  --color-surface-elevated: #111827;
-  --color-surface-card: #151d2f;
-  --color-border: #1e293b;
-  --color-border-bright: #334155;
-  --color-text: #f8fafc;
-  --color-text-muted: #94a3b8;
-  --color-text-dim: #64748b;
-}
-
 @theme {
-  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --color-fintech-page: #F6F7F9;
+  --color-fintech-surface: #FFFFFF;
+  --color-fintech-subtle: #F9FAFB;
+  --color-fintech-border: #E5E7EB;
+  --color-fintech-border-subtle: #F1F5F9;
+  --color-fintech-text-primary: #172033;
+  --color-fintech-text-secondary: #64748B;
+  --color-fintech-text-muted: #94A3B8;
 }
 
-html,
-body,
-#root {
-  min-height: 100vh;
-  background-color: var(--color-surface);
-  color: var(--color-text);
-  font-family: var(--font-sans);
-  overflow-x: hidden;
-}
-
-/* Glassmorphism cards */
-.glass-panel {
-  background: rgba(17, 24, 39, 0.85);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--color-border);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-}
-
-.glass-card {
-  background: linear-gradient(135deg, rgba(21, 29, 47, 0.9) 0%, rgba(15, 23, 42, 0.75) 100%);
-  backdrop-filter: blur(8px);
-  border: 1px solid var(--color-border);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.glass-card:hover {
-  border-color: rgba(82, 143, 240, 0.4);
-  box-shadow: 0 10px 30px -10px rgba(82, 143, 240, 0.25);
-  transform: translateY(-2px);
-}
-
-/* Status Badges */
-.badge-auto-contested {
-  background: rgba(16, 185, 129, 0.15);
-  color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.3);
-}
-
-.badge-needs-review {
-  background: rgba(245, 158, 11, 0.15);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, 0.3);
-}
-
-.badge-auto-accepted {
-  background: rgba(239, 68, 68, 0.15);
-  color: #f87171;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-}
-
-.badge-processing {
-  background: rgba(82, 143, 240, 0.15);
-  color: #60a5fa;
-  border: 1px solid rgba(82, 143, 240, 0.3);
-}
-
-/* Custom Scrollbar */
+/* Custom Scrollbar for light theme */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-surface);
+  background: #F6F7F9;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-border);
-  border-radius: 4px;
+  background: #CBD5E1;
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-dim);
+  background: #94A3B8;
 }
 
-/* Animations */
-@keyframes pulseGlow {
-  0%, 100% {
-    box-shadow: 0 0 15px rgba(82, 143, 240, 0.2);
-  }
-  50% {
-    box-shadow: 0 0 25px rgba(82, 143, 240, 0.5);
-  }
+/* Code & pre styling */
+pre, code, kbd, samp {
+  font-family: var(--font-mono);
 }
 
-.pulse-glow {
-  animation: pulseGlow 3s infinite ease-in-out;
+/* Fintech Card Utilities with restrained soft depth */
+.fintech-card {
+  background-color: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
+}
+
+.fintech-card-subtle {
+  background-color: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 0.75rem;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+}
+
+.fintech-modal {
+  background-color: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 1rem;
+  box-shadow: 0 20px 48px -10px rgba(15, 23, 42, 0.12);
 }
