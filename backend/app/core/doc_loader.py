@@ -10,6 +10,7 @@ import os
 from typing import Any, Dict, List, Optional
 
 import chromadb
+from chromadb.api import ClientAPI
 
 from app.config import get_config
 
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 config = get_config()
 
 
-def get_chroma_client() -> chromadb.ClientAPI:
+def get_chroma_client() -> ClientAPI:
     """Return persistent ChromaDB client for vector storage."""
     db_path = config.resolve_path(config.chromadb_path)
     os.makedirs(db_path, exist_ok=True)
@@ -39,7 +40,7 @@ def chunk_text(text: str, chunk_size: int = 400, overlap: int = 60) -> List[str]
 
 
 def load_policy_documents(
-    client: Optional[chromadb.ClientAPI] = None, force_reindex: bool = False
+    client: Optional[ClientAPI] = None, force_reindex: bool = False
 ) -> int:
     """Ingest Visa CE 3.0 and NPCI UDIR regulatory texts into ChromaDB."""
     client = client or get_chroma_client()
@@ -84,7 +85,7 @@ def load_policy_documents(
 
 
 def load_customer_chats(
-    client: Optional[chromadb.ClientAPI] = None,
+    client: Optional[ClientAPI] = None,
     chat_records: Optional[List[Dict[str, Any]]] = None,
     force_reindex: bool = False,
 ) -> int:
