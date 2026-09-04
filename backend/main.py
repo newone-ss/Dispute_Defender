@@ -6,9 +6,11 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
+from api.disputes import router as disputes_router
 from api.webhook import router as webhook_router
-from core.database import Base, engine
+from core.database import Base, SessionLocal, engine
 import data.models  # Ensures Dispute & Telemetry models register on Base.metadata
 
 logger = logging.getLogger("main")
@@ -43,18 +45,50 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include the webhook router
+# Mount API routers (root and /api prefixes)
 app.include_router(webhook_router)
 app.include_router(webhook_router, prefix="/api")
 
+app.include_router(disputes_router)
+app.include_router(disputes_router, prefix="/api")
 
+
+# ---------------------------------------------------------------------------
+# Health Check Endpoints
+# ---------------------------------------------------------------------------
 @app.get("/", tags=["health"])
 def root_check():
     """Root endpoint for status check."""
     return {
         "status": "healthy",
         "service": "Razorpay Dispute Defender",
-        "endpoints": ["/webhook/razorpay", "/docs"],
+        "endpoints": [
+            "/webhook/razorpay",
+            "/disputes",
+            "/metrics",
+            "/healthz",
+            "/docs",
+        ],
+    }
+
+
+@app.get("/healthz", tags=["health"])
+def health_check():
+    """Deep health check verifying SQLite database connectivity."""
+    db_ok = False
+    db = SessionLocal()
+    try:
+        db.execute(text("SELECT 1"))
+        db_ok = True
+    except Exception as err:
+        logger.warning(f"Database health check failed: {err}")
+    finally:
+        db.close()
+
+    return {
+        "status": "healthy" if db_ok else "degraded",
+        "database": "reachable" if db_ok else "unreachable",
+        "service": "Razorpay Dispute Defender",
     }
 
 

@@ -1,0 +1,363 @@
+{
+  "info": {
+    "_postman_id": "a5d8f941-8e3b-4892-91ef-c80695029a14",
+    "name": "Razorpay Dispute Defender",
+    "description": "Postman Collection for testing FastAPI endpoints of Razorpay Dispute Defender, including courier telemetry verification, webhook ingestion, dispute triage, and system health checks.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8000",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "admin_secret_token_override_99",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Webhooks",
+      "description": "Endpoints handling Razorpay webhook notifications and asynchronous background chargeback resolution.",
+      "item": [
+        {
+          "name": "Ingest Webhook - payment.dispute.created (Nested Structure)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"payment.dispute.created\",\n  \"payload\": {\n    \"dispute\": {\n      \"entity\": {\n        \"id\": \"disp_test_998811\",\n        \"payment_id\": \"pay_test_445566\",\n        \"reason_code\": \"goods_not_delivered\",\n        \"amount\": 149900\n      }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook/razorpay",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook",
+                "razorpay"
+              ]
+            },
+            "description": "Primary webhook endpoint ingesting Razorpay dispute creation events using the nested payload model structure."
+          },
+          "response": []
+        },
+        {
+          "name": "Ingest Webhook - payment.dispute.created (/api prefix)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"payment.dispute.created\",\n  \"payload\": {\n    \"dispute\": {\n      \"entity\": {\n        \"id\": \"disp_test_api_5544\",\n        \"payment_id\": \"pay_test_api_1122\",\n        \"reason_code\": \"fraud\",\n        \"amount\": 299900\n      }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/webhook/razorpay",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "webhook",
+                "razorpay"
+              ]
+            },
+            "description": "Webhook ingestion endpoint under the /api router prefix."
+          },
+          "response": []
+        },
+        {
+          "name": "Ingest Webhook - Direct / Simulation Flat Fields",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"payment.dispute.created\",\n  \"dispute_id\": \"disp_direct_sim_101\",\n  \"payment_id\": \"pay_direct_sim_202\",\n  \"reason_code\": \"product_not_received\",\n  \"amount\": 450000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook/razorpay",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook",
+                "razorpay"
+              ]
+            },
+            "description": "Flat format convenience payload supported by RazorpayWebhookPayload."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Health & System",
+      "description": "System liveness, readiness, and API documentation endpoints.",
+      "item": [
+        {
+          "name": "Root Status Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                ""
+              ]
+            },
+            "description": "Root endpoint returning service identity, health status, and available routes."
+          },
+          "response": []
+        },
+        {
+          "name": "Deep Health Check (/healthz)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/healthz",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "healthz"
+              ]
+            },
+            "description": "Checks connectivity to SQLite WAL database and ChromaDB vector store heartbeat."
+          },
+          "response": []
+        },
+        {
+          "name": "OpenAPI Specification",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/openapi.json",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "openapi.json"
+              ]
+            },
+            "description": "Fetch OpenAPI schema JSON document."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Disputes & Database Fetch",
+      "description": "Endpoints for querying disputes, metrics, manual operator overrides, and synthetic testing.",
+      "item": [
+        {
+          "name": "Get Metrics & ROI Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/metrics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "metrics"
+              ]
+            },
+            "description": "Fetch financial analytics: net INR saved, win rate, avoided bank penalties, and dispute counts."
+          },
+          "response": []
+        },
+        {
+          "name": "List Disputes (Paginated)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/disputes?skip=0&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "disputes"
+              ],
+              "query": [
+                {
+                  "key": "skip",
+                  "value": "0",
+                  "description": "Pagination offset"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Pagination limit"
+                },
+                {
+                  "key": "status",
+                  "value": "under_review",
+                  "description": "Filter by dispute status",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "disp_",
+                  "description": "Search by dispute ID, payment ID, or reason code",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Retrieve paginated list of disputes from the database with optional status filtering and search."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Dispute Detail by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/disputes/:dispute_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "disputes",
+                ":dispute_id"
+              ],
+              "variable": [
+                {
+                  "key": "dispute_id",
+                  "value": "disp_test_998811",
+                  "description": "Razorpay dispute ID"
+                }
+              ]
+            },
+            "description": "Fetch full audit trail, courier telemetry, and compiled evidence packet for a specific dispute."
+          },
+          "response": []
+        },
+        {
+          "name": "Manual Operator Override",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Admin-Token",
+                "value": "{{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"contest\",\n  \"operator_note\": \"Courier confirmed delivery signature match. Proceed with contestation.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/disputes/:dispute_id/override",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "disputes",
+                ":dispute_id",
+                "override"
+              ],
+              "variable": [
+                {
+                  "key": "dispute_id",
+                  "value": "disp_test_998811",
+                  "description": "Razorpay dispute ID to override"
+                }
+              ]
+            },
+            "description": "Authenticate via X-Admin-Token and force a dispute transition to MANUALLY_CONTESTED or MANUALLY_ACCEPTED."
+          },
+          "response": []
+        },
+        {
+          "name": "Simulate Dispute Scenario",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scenario\": \"winnable_clean\",\n  \"reason_code\": \"product_not_received\",\n  \"amount_inr\": 2499.0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/simulate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "simulate"
+              ]
+            },
+            "description": "Inject synthetic courier telemetry and dispute data (scenarios: winnable_clean, customer_defect_ticket, transit_weight_loss, obd_clean, obd_defective, fraud_no_otp)."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
