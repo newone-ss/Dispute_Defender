@@ -3,8 +3,9 @@
 CRITICAL DESIGN:
 - Returns 200 OK immediately to acknowledge receipt from Razorpay.
 - Schedules end-to-end audit and representment generation via FastAPI BackgroundTasks.
-- Checks Consumer Fairness Gate (open defect ticket or >100g weight loss) -> AUTO_ACCEPT to avoid ₹1,500 penalty.
-- High confidence (>80) -> uploads NPCI UDIR packet to Documents API and calls Contest API.
+- Hybrid Gate: RAG omnichannel fairness → Deterministic telemetry → Consumer Fairness Gate.
+- Reason-Code Routing: OBD defective merchandise auto-contest, standard defective → NEEDS_REVIEW.
+- High confidence (>80) → uploads NPCI UDIR packet to Documents API and calls Contest API.
 """
 
 import json
@@ -21,13 +22,15 @@ from core.audit_engine import evaluate_telemetry
 from core.compiler import compile_evidence
 from core.ocr_extractor import parse_manifest_text_deterministic
 from core.razorpay_client import razorpay_client
+from core.rag_engine import evaluate_rag_fairness_sync
+from core.policy_rag import get_policy_checklist
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["webhooks"])
 
 
 def process_dispute_task(dispute_id: str) -> None:
-    """Asynchronous background worker executing the audit & contest pipeline."""
+    """Asynchronous background worker executing the hybrid audit & contest pipeline."""
     db: Session = SessionLocal()
     try:
         dispute = db.query(Dispute).filter(Dispute.dispute_id == dispute_id).first()
@@ -54,12 +57,46 @@ def process_dispute_task(dispute_id: str) -> None:
                 ocr_manifest_json = extracted.model_dump_json()
                 dispute.ocr_manifest_json = ocr_manifest_json
 
-        # ── 2. Run Deterministic Audit & Fairness Gate ──────────────────────
-        audit = evaluate_telemetry(dispute.raw_telemetry)
+        # ── 2. Extract delivery type ────────────────────────────────────────
+        delivery_type = (
+            raw_dict.get("delivery_type")
+            or dispute.delivery_type
+            or "STANDARD"
+        ).upper()
+        dispute.delivery_type = delivery_type
+
+        # ── 3. RAG Omnichannel Fairness Gate ────────────────────────────────
+        rag_result = evaluate_rag_fairness_sync(
+            dispute_id=dispute.dispute_id,
+            order_id=dispute.order_id or "",
+        )
+        dispute.rag_fairness_triggered = rag_result.triggered
+        dispute.rag_fairness_summary = rag_result.summary
+
+        # ── 4. Policy RAG — Fetch evidence checklist ────────────────────────
+        reason_code = dispute.reason_code or raw_dict.get("reason_code", "product_not_received")
+        policy = get_policy_checklist(
+            reason_code=reason_code,
+            delivery_type=delivery_type,
+            use_rag=True,
+        )
+        policy_json = policy.model_dump_json()
+        dispute.policy_checklist_json = policy_json
+
+        # ── 5. Run Deterministic Audit with Hybrid Gates ────────────────────
+        audit = evaluate_telemetry(
+            raw_telemetry=dispute.raw_telemetry,
+            delivery_type=delivery_type,
+            reason_code=reason_code,
+            rag_fairness_triggered=rag_result.triggered,
+            rag_fairness_summary=rag_result.summary,
+            policy_checklist_json=policy_json,
+        )
 
         dispute.confidence_score = audit.confidence_score
         dispute.otp_verified = audit.otp_verified
         dispute.geofence_distance_km = audit.geofence_distance_km
+        dispute.geofence_distance_m = audit.geofence_distance_m
         dispute.shipped_weight_g = audit.shipped_weight_g
         dispute.delivered_weight_g = audit.delivered_weight_g
         dispute.weight_loss_g = audit.weight_loss_g
@@ -73,10 +110,13 @@ def process_dispute_task(dispute_id: str) -> None:
 
         logger.info(
             f"Dispute {dispute_id}: Score={audit.confidence_score}, "
-            f"Decision={audit.decision.value}, FairnessGate={audit.fairness_gate_triggered}"
+            f"Decision={audit.decision.value}, DeliveryType={delivery_type}, "
+            f"Route={audit.reason_code_route}, "
+            f"FairnessGate={audit.fairness_gate_triggered}, "
+            f"RAGFairness={rag_result.triggered}"
         )
 
-        # ── 3. Compile NPCI UDIR Representment Packet ────────────────────────
+        # ── 6. Compile NPCI UDIR Representment Packet ────────────────────────
         evidence_text = compile_evidence(
             dispute_id=dispute.dispute_id,
             payment_id=dispute.payment_id,
@@ -86,10 +126,14 @@ def process_dispute_task(dispute_id: str) -> None:
             confidence_score=audit.confidence_score,
             raw_telemetry=dispute.raw_telemetry,
             ocr_manifest_json=dispute.ocr_manifest_json,
+            delivery_type=delivery_type,
+            rag_fairness_summary=rag_result.summary if rag_result.triggered else None,
+            policy_checklist_json=policy_json,
+            geofence_distance_m=audit.geofence_distance_m,
         )
         dispute.evidence_text = evidence_text
 
-        # ── 4. Execute API Actions (Contest vs Accept) ───────────────────────
+        # ── 7. Execute API Actions (Contest vs Accept) ───────────────────────
         if audit.decision == DisputeStatus.AUTO_CONTESTED:
             logger.info(f"Uploading NPCI UDIR evidence document for dispute {dispute_id}...")
             doc_res = razorpay_client.upload_document_sync(
@@ -137,7 +181,7 @@ async def receive_webhook(request: Request, background_tasks: BackgroundTasks):
 
     Flow:
     1. Parse JSON payload immediately.
-    2. Extract dispute ID, payment ID, amount, and order ID.
+    2. Extract dispute ID, payment ID, amount, order ID, and delivery_type.
     3. Persist record to SQLite in RECEIVED status with raw JSON telemetry.
     4. Queue process_dispute_task in BackgroundTasks.
     5. Return 200 OK immediately.
@@ -160,6 +204,7 @@ async def receive_webhook(request: Request, background_tasks: BackgroundTasks):
     payment_id = dispute_entity.get("payment_id") or body.get("payment_id")
     order_id = dispute_entity.get("order_id") or body.get("order_id")
     reason_code = dispute_entity.get("reason_code") or body.get("reason_code") or "product_not_received"
+    delivery_type = dispute_entity.get("delivery_type") or body.get("delivery_type") or "STANDARD"
 
     amount_paise = dispute_entity.get("amount")
     if amount_paise is not None:
@@ -179,14 +224,16 @@ async def receive_webhook(request: Request, background_tasks: BackgroundTasks):
                 status=DisputeStatus.RECEIVED,
                 reason_code=reason_code,
                 amount=amount_inr,
+                delivery_type=delivery_type.upper(),
                 raw_telemetry=json.dumps(body),
             )
             db.add(dispute)
             db.commit()
-            logger.info(f"Ingested webhook dispute {dispute_id} -> SQLite")
+            logger.info(f"Ingested webhook dispute {dispute_id} -> SQLite (delivery_type={delivery_type})")
         else:
             logger.info(f"Dispute {dispute_id} already exists, updating raw telemetry")
             existing.raw_telemetry = json.dumps(body)
+            existing.delivery_type = delivery_type.upper()
             db.commit()
     except IntegrityError:
         db.rollback()
@@ -203,5 +250,6 @@ async def receive_webhook(request: Request, background_tasks: BackgroundTasks):
     return {
         "status": "received",
         "dispute_id": dispute_id,
-        "message": "Dispute verification pipeline queued asynchronously",
+        "delivery_type": delivery_type,
+        "message": "Dispute verification pipeline queued asynchronously (Hybrid RAG + Deterministic)",
     }

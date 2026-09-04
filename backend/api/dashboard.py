@@ -20,9 +20,11 @@ from core.schemas import (
     ManualOverrideRequest,
     ManualOverrideResponse,
     SimulateWebhookRequest,
+    PolicyChecklistOut,
 )
 from core.compiler import compile_evidence
 from core.razorpay_client import razorpay_client
+from core.policy_rag import get_policy_checklist
 from api.webhook import process_dispute_task
 
 logger = logging.getLogger(__name__)
@@ -73,7 +75,6 @@ def get_dashboard_metrics(db: Session = Depends(get_db)):
     )
 
     # Bank penalty fees avoided: ₹1,500 per auto-accepted weak/defect dispute
-    # (By accepting upfront instead of losing an unjustified contest, merchant saves ₹1,500 bank fee)
     penalties_avoided = auto_accepted * settings.bank_penalty_fee_inr
 
     resolved = auto_contested + auto_accepted
@@ -133,6 +134,20 @@ def get_dispute_detail(dispute_id: str, db: Session = Depends(get_db)):
     return DisputeOut.model_validate(dispute)
 
 
+@router.get("/api/v1/dashboard/disputes/{dispute_id}/policy-checklist", response_model=PolicyChecklistOut)
+def get_dispute_policy_checklist(dispute_id: str, db: Session = Depends(get_db)):
+    """Retrieve the RAG-enriched policy evidence checklist for a dispute."""
+    dispute = db.query(Dispute).filter(Dispute.dispute_id == dispute_id).first()
+    if not dispute:
+        raise HTTPException(status_code=404, detail=f"Dispute {dispute_id} not found")
+
+    return get_policy_checklist(
+        reason_code=dispute.reason_code or "product_not_received",
+        delivery_type=dispute.delivery_type or "STANDARD",
+        use_rag=True,
+    )
+
+
 @router.post("/api/v1/dashboard/disputes/{dispute_id}/override", response_model=ManualOverrideResponse)
 @router.post("/disputes/override", response_model=ManualOverrideResponse)
 async def manual_override(
@@ -166,6 +181,10 @@ async def manual_override(
             confidence_score=dispute.confidence_score or 75.0,
             raw_telemetry=dispute.raw_telemetry,
             ocr_manifest_json=dispute.ocr_manifest_json,
+            delivery_type=dispute.delivery_type or "STANDARD",
+            rag_fairness_summary=dispute.rag_fairness_summary,
+            policy_checklist_json=dispute.policy_checklist_json,
+            geofence_distance_m=dispute.geofence_distance_m,
         )
 
     # Upload document & submit contest
@@ -204,47 +223,93 @@ async def simulate_dispute_webhook(
     random_id = f"disp_sim_{random.randint(100000, 999999)}"
     payment_id = f"pay_sim_{random.randint(100000, 999999)}"
     order_id = f"order_sim_{random.randint(100000, 999999)}"
+    delivery_type = "STANDARD"
 
     # Build telemetry based on scenario
     if req.scenario == "winnable_clean":
         telemetry = {
             "otp": {"verified": True},
-            "geofence": {"distance_km": round(random.uniform(0.2, 2.5), 1)},
+            "geofence": {"distance_km": round(random.uniform(0.02, 0.08), 3)},  # 20-80m
             "weight": {"shipped_g": 520, "delivered_g": 518},
             "delivery_signature": True,
             "device_fingerprint_match": True,
             "defect_ticket_open": False,
             "courier": "Delhivery Express",
+            "delivery_type": "STANDARD",
             "manifest_ocr_text": "DELHIVERY LOGISTICS MANIFEST - AWB-991024 - RECIPIENT SIGNED - 518g",
         }
     elif req.scenario == "customer_defect_ticket":
         # Consumer Fairness Gate trigger 1: open support ticket
         telemetry = {
             "otp": {"verified": True},
-            "geofence": {"distance_km": 1.1},
+            "geofence": {"distance_km": 0.05},
             "weight": {"shipped_g": 500, "delivered_g": 500},
             "delivery_signature": True,
             "defect_ticket_open": True,
             "support_ticket": {"open": True, "ticket_id": "TICK-9012", "issue": "Item damaged in box"},
+            "delivery_type": "STANDARD",
         }
     elif req.scenario == "transit_weight_loss":
         # Consumer Fairness Gate trigger 2: transit weight loss > 100g
         telemetry = {
             "otp": {"verified": True},
-            "geofence": {"distance_km": 1.5},
+            "geofence": {"distance_km": 0.06},
             "weight": {"shipped_g": 750, "delivered_g": 520},  # 230g loss > 100g
             "delivery_signature": True,
             "defect_ticket_open": False,
+            "delivery_type": "STANDARD",
         }
     elif req.scenario == "ambiguous_needs_review":
         telemetry = {
             "otp": {"verified": False},
-            "geofence": {"distance_km": round(random.uniform(7.0, 11.0), 1)},
+            "geofence": {"distance_km": round(random.uniform(0.3, 0.8), 2)},  # 300-800m
             "weight": {"shipped_g": 500, "delivered_g": 480},
             "delivery_signature": True,
             "device_fingerprint_match": False,
             "defect_ticket_open": False,
+            "delivery_type": "STANDARD",
         }
+    elif req.scenario == "obd_clean_delivery":
+        # Open Box Delivery — clean, no defect → AUTO_CONTESTED
+        delivery_type = "OPEN_BOX"
+        telemetry = {
+            "otp": {"verified": True},
+            "geofence": {"distance_km": 0.04},  # 40m
+            "weight": {"shipped_g": 800, "delivered_g": 798},
+            "delivery_signature": True,
+            "device_fingerprint_match": True,
+            "defect_ticket_open": False,
+            "delivery_type": "OPEN_BOX",
+            "courier": "Blue Dart OBD",
+        }
+        req.reason_code = "product_not_received"
+    elif req.scenario == "obd_defective_open_box":
+        # OBD + defective claim → OTP proves inspection → AUTO_CONTESTED
+        delivery_type = "OPEN_BOX"
+        telemetry = {
+            "otp": {"verified": True},
+            "geofence": {"distance_km": 0.06},
+            "weight": {"shipped_g": 600, "delivered_g": 598},
+            "delivery_signature": True,
+            "device_fingerprint_match": True,
+            "defect_ticket_open": False,
+            "delivery_type": "OPEN_BOX",
+            "courier": "Delhivery OBD",
+        }
+        req.reason_code = "defective_merchandise"
+    elif req.scenario == "rag_prior_complaint":
+        # This dispute has a prior WhatsApp complaint seeded in ChromaDB
+        telemetry = {
+            "otp": {"verified": True},
+            "geofence": {"distance_km": 0.05},
+            "weight": {"shipped_g": 500, "delivered_g": 498},
+            "delivery_signature": True,
+            "defect_ticket_open": False,
+            "delivery_type": "STANDARD",
+        }
+        # Use a dispute_id that has chat records seeded
+        random_id = f"disp_rag_{random.randint(1, 5):03d}"
+        req.reason_code = "defective_merchandise"
     else:  # fraud_no_otp
         telemetry = {
             "otp": {"verified": False},
@@ -253,6 +318,7 @@ async def simulate_dispute_webhook(
             "delivery_signature": False,
             "device_fingerprint_match": False,
             "defect_ticket_open": False,
+            "delivery_type": "STANDARD",
         }
 
     webhook_payload = {
@@ -265,6 +331,7 @@ async def simulate_dispute_webhook(
                     "order_id": order_id,
                     "amount": int(req.amount * 100),
                     "reason_code": req.reason_code,
+                    "delivery_type": delivery_type,
                 }
             }
         },
@@ -279,6 +346,7 @@ async def simulate_dispute_webhook(
         status=DisputeStatus.RECEIVED,
         reason_code=req.reason_code,
         amount=req.amount,
+        delivery_type=delivery_type,
         raw_telemetry=json.dumps(webhook_payload),
     )
     db.add(dispute)
@@ -291,6 +359,7 @@ async def simulate_dispute_webhook(
         "status": "simulated",
         "dispute_id": random_id,
         "scenario": req.scenario,
+        "delivery_type": delivery_type,
         "amount": req.amount,
-        "message": f"Simulated {req.scenario} dispute webhook successfully queued",
+        "message": f"Simulated {req.scenario} dispute webhook successfully queued (Hybrid Pipeline)",
     }
