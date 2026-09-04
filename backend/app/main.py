@@ -110,6 +110,7 @@ def create_app() -> FastAPI:
     app.include_router(webhook.router, prefix="/api")
     app.include_router(webhook.router)  # root /webhook alias
     app.include_router(dashboard.router, prefix="/api")
+    app.include_router(dashboard.router)  # root alias for /metrics, /disputes
     app.include_router(dashboard.router, prefix="/api/v1/dashboard")  # backward-compat
 
     return app
