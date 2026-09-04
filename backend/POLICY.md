@@ -9,8 +9,7 @@
 1. **No Code Modification for Tunables**: 
    - Never hardcode scoring weights, radii, or tolerances inside Python source code. All changes must be made exclusively in [`app/policy/scoring_policy.yaml`](file:///c:/Users/piyus/OneDrive/Desktop/project/razorpay/backend/app/policy/scoring_policy.yaml).
 2. **Version Bump Mandate**:
-   - Any adjustment to weights, radii, tolerances, or action thresholds requires a semantic policy version bump (e.g. `2026.1.0` -> `2026.1.1`).
-   - The version bump must be recorded in [`backend/CHANGELOG.md`](file:///c:/Users/piyus/OneDrive/Desktop/project/razorpay/backend/CHANGELOG.md).
+   - Any adjustment to weights, radii, tolerances, or action thresholds requires a semantic policy version bump (e.g. `2026.1.0` -> `2026.1.1`) inside `app/policy/scoring_policy.yaml`.
 3. **Approval Authority**:
    - Changes to the **Consumer Fairness Gate** (e.g. raising `fairness_weight_loss_g`) require sign-off from the **Risk Policy Lead** and **Head of Merchant Operations** to prevent accidental penalty fee exposure.
 

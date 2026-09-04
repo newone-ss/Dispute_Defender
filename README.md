@@ -22,59 +22,87 @@
 4. **Restricted LLM Scope:**
    - LLMs and Vision models are strictly isolated to `core/ocr_extractor.py` for parsing messy, unstructured scanned delivery manifests into typed Pydantic models. Includes deterministic fallback regex parser for offline/test resilience.
 
-5. **Non-blocking Webhook Ingestion:**
-   - `POST /api/v1/webhook` (and `/webhook`) returns `200 OK` in < 25ms and schedules end-to-end audit processing via FastAPI `BackgroundTasks`.
+5. **Non-blocking Webhook Ingestion & Durable Queue:**
+   - `POST /api/v1/webhook` (and `/webhook`) validates HMAC-SHA256 signatures, deduplicates idempotency keys, and commits an atomic `AuditJob` in < 25ms. A standalone queue worker daemon processes jobs asynchronously with atomic SQLite leases.
 
 ---
 
 ## 🏗️ Monorepo Architecture
 
 ```text
-razorpay-dispute-defender/
+dispute-defender/
 ├── backend/
-│   ├── api/
-│   │   ├── __init__.py
-│   │   ├── webhook.py          # POST /webhook & /api/v1/webhook (FastAPI BackgroundTasks)
-│   │   └── dashboard.py        # REST endpoints (/metrics, /disputes, /override, /simulate)
-│   ├── core/
-│   │   ├── __init__.py
-│   │   ├── config.py           # pydantic-settings loading .env
-│   │   ├── database.py         # SQLite engine & session manager
-│   │   ├── models.py           # SQLAlchemy Dispute & telemetry schema
-│   │   ├── schemas.py          # Pydantic models (Dispute, Telemetry, AuditResult, ManifestData)
-│   │   ├── audit_engine.py     # Deterministic telemetry scoring & Consumer Fairness Gate
-│   │   ├── compiler.py         # Jinja2 template renderer for NPCI/Visa dispute packets
-│   │   ├── ocr_extractor.py    # Vision/LLM parser for scanned manifests with confidence score
-│   │   └── razorpay_client.py  # HTTP client with MOCK_MODE toggle for Documents & Disputes API
-│   ├── data/
-│   │   ├── __init__.py
-│   │   ├── seed_database.py    # Seeds SQLite with 50 synthetic test cases (30 win, 10 legit, 10 fail)
-│   │   ├── mock_db/            # Holds local SQLite database file
-│   │   └── templates/
-│   │       └── npci_udir_packet.md.j2
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── __init__.py
+│   │   │   ├── dashboard.py        # REST endpoints (/metrics, /disputes, /override, /simulate)
+│   │   │   └── webhook.py          # Sub-25ms HMAC-verified webhook ingestion
+│   │   ├── core/
+│   │   │   ├── compiler.py         # Byte-stable Jinja2 template compiler with SHA-256 digests
+│   │   │   ├── database.py         # SQLAlchemy 2.0 engine & WAL mode SQLite session manager
+│   │   │   ├── doc_loader.py       # Regulatory rulebook PDF and chat log loader
+│   │   │   ├── models.py           # Typed Mapped Dispute & AuditJob schema
+│   │   │   ├── ocr_extractor.py    # Manifest OCR parser (Gemini / regex fallback)
+│   │   │   ├── policy_rag.py       # Regulatory policy vector search (ChromaDB)
+│   │   │   ├── queue.py            # Durable atomic SQLite queue with lease management
+│   │   │   ├── rag_engine.py       # Omnichannel customer chat transcript vector RAG
+│   │   │   ├── razorpay_client.py  # Typed Razorpay HTTP client with safe mock mode
+│   │   │   └── schemas.py          # Typed Pydantic v2 schemas
+│   │   ├── data/
+│   │   │   ├── knowledge_base/     # Regulatory policy PDFs (NPCI UDIR, Visa CE 3.0)
+│   │   │   └── seed_database.py    # Database & vector index seeding pipeline
+│   │   ├── policy/
+│   │   │   ├── fairness_gate.py    # Zero-liability Consumer Fairness Gate
+│   │   │   ├── reason_codes.py     # NPCI UDIR & Visa CE 3.0 Reason Code registry
+│   │   │   ├── scoring_engine.py   # Pure mathematical scoring engine
+│   │   │   └── scoring_policy.yaml # Declarative policy thresholds & weights
+│   │   ├── templates/
+│   │   │   └── npci_udir_packet.md.j2 # Jinja2 representment evidence template
+│   │   ├── workers/
+│   │   │   └── audit_worker.py     # Standalone durable audit queue worker daemon
+│   │   ├── config.py               # Central pydantic-settings environment configuration
+│   │   ├── logging_config.py       # Structured JSON logging with PII masking
+│   │   └── main.py                 # FastAPI application factory & lifespan
 │   ├── evaluate/
-│   │   ├── __init__.py
-│   │   ├── test_dataset.json   # 50 ground-truth labeled scenarios
-│   │   └── run_benchmark.py    # CLI evaluator calculating Precision, Recall, and Net INR Saved
-│   ├── main.py                 # FastAPI application entrypoint
-│   ├── requirements.txt
-│   └── .env.example
+│   │   ├── run_benchmark.py        # CLI evaluator calculating Precision, Recall, and ROI
+│   │   └── test_dataset.json       # Ground-truth labeled evaluation scenarios
+│   ├── tests/
+│   │   ├── conftest.py             # Pytest fixtures and database test harness
+│   │   ├── test_audit_engine.py    # Pure scoring engine unit tests
+│   │   ├── test_compiler.py        # Byte-stable evidence compiler snapshot tests
+│   │   ├── test_consumer_fairness.py # Consumer Fairness Gate tests
+│   │   ├── test_dashboard_api.py   # REST API endpoint tests
+│   │   ├── test_queue.py           # Durable SQLite queue lease & recovery tests
+│   │   ├── test_webhook_idempotency.py # Webhook idempotency tests
+│   │   └── test_webhook_signature.py   # HMAC signature validation tests
+│   ├── main.py                     # Root entrypoint forwarding to app.main
+│   ├── pyproject.toml              # PEP 621 package and build metadata
+│   ├── requirements.txt            # Production Python dependencies
+│   ├── POLICY.md                   # Scoring policy governance guide
+│   └── .env.example                # Documented environment variables template
 ├── frontend/
-│   ├── package.json
-│   ├── vite.config.ts
-│   ├── index.html
 │   ├── src/
-│   │   ├── App.tsx             # Routing & responsive sidebar layout
-│   │   ├── main.tsx
+│   │   ├── components/
+│   │   │   ├── AuditModal.tsx      # Deep audit inspection modal (telemetry, OCR, UDIR)
+│   │   │   ├── DisputeTable.tsx    # Filterable dispute table with live status badges
+│   │   │   ├── MetricCards.tsx     # Financial metrics (INR saved, penalties avoided)
+│   │   │   ├── Sidebar.tsx         # Navigation sidebar
+│   │   │   └── TelemetryBadge.tsx  # Telemetry checklist pill badge
 │   │   ├── pages/
-│   │   │   ├── Dashboard.tsx   # Visual financial metrics (INR saved, penalties avoided, simulator)
-│   │   │   └── Disputes.tsx    # Filterable dispute table with live telemetry checklist badges
-│   │   └── components/
-│   │       ├── Sidebar.tsx
-│   │       ├── MetricCards.tsx
-│   │       ├── TelemetryBadge.tsx
-│   │       └── AuditModal.tsx  # Deep audit inspection (geofence, OTP, weight, OCR, UDIR preview)
-│   └── tailwind.config.js
+│   │   │   ├── Dashboard.tsx       # Analytics dashboard & interactive dispute simulator
+│   │   │   └── Disputes.tsx        # Dispute management & review page
+│   │   ├── lib/
+│   │   │   └── api.ts              # Typed API client for FastAPI backend
+│   │   ├── App.tsx                 # Router & application layout
+│   │   ├── index.css               # Global styles & Tailwind directives
+│   │   └── main.tsx                # React DOM entrypoint
+│   ├── public/                     # Static assets & SVG icons
+│   ├── index.html                  # HTML entrypoint
+│   ├── package.json                # NPM dependencies and scripts
+│   ├── tailwind.config.js          # Tailwind CSS design system configuration
+│   ├── tsconfig.json               # TypeScript configuration
+│   └── vite.config.ts              # Vite bundler & API proxy configuration
+├── pyrightconfig.json              # Python language server path configuration
 └── README.md
 ```
 
@@ -88,14 +116,21 @@ razorpay-dispute-defender/
 cd backend
 pip install -r requirements.txt
 
-# Seed SQLite database with 50 diverse test cases
-python -m data.seed_database
+# Seed SQLite database with test cases and vector embeddings
+python -m app.data.seed_database
 
 # Run evaluation benchmark
 python -m evaluate.run_benchmark
 
+# Run the automated test suite (18 tests)
+python -m pytest tests -v
+
 # Start FastAPI server (Runs on port 8000)
-uvicorn main:app --reload --port 8000
+python -m app.main
+# or: uvicorn app.main:app --reload --port 8000
+
+# In a separate terminal, launch the durable audit queue worker daemon:
+python -m app.workers.audit_worker
 ```
 
 ### 2. Frontend Setup & Run
