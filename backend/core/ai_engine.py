@@ -21,9 +21,12 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# API Key Configuration (relying entirely on os.getenv)
+# API Key and Model Configuration (relying entirely on os.getenv)
 # ---------------------------------------------------------------------------
 GEMINI_API_KEY: Optional[str] = os.getenv("GEMINI_API_KEY")
+GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+GEMINI_EMBEDDING_MODEL: str = os.getenv("GEMINI_EMBEDDING_MODEL", "models/embedding-004")
+
 OPENROUTER_API_KEY: Optional[str] = os.getenv("OPENROUTER_API_KEY")
 OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.8b-instruct:free")
 
@@ -31,11 +34,15 @@ OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.8b-ins
 # ---------------------------------------------------------------------------
 # 1. Gemini Embeddings for ChromaDB Vector Ingestion & Querying
 # ---------------------------------------------------------------------------
-def get_embeddings(api_key: Optional[str] = None) -> GoogleGenerativeAIEmbeddings:
-    """Initialize GoogleGenerativeAIEmbeddings with models/embedding-004."""
+def get_embeddings(
+    api_key: Optional[str] = None,
+    model: Optional[str] = None,
+) -> GoogleGenerativeAIEmbeddings:
+    """Initialize GoogleGenerativeAIEmbeddings with models/embedding-004 (or configured model)."""
     key = api_key or os.getenv("GEMINI_API_KEY") or "placeholder_key"
+    model_name = model or os.getenv("GEMINI_EMBEDDING_MODEL", "models/embedding-004")
     return GoogleGenerativeAIEmbeddings(
-        model="models/embedding-004",
+        model=model_name,
         google_api_key=key,
     )
 
@@ -58,26 +65,43 @@ class GeminiChromaEmbeddingFunction:
         self._embeddings = emb or get_embeddings()
 
     def __call__(self, input: List[str]) -> List[List[float]]:
-        """Embed list of document texts for ChromaDB."""
-        return self._embeddings.embed_documents(input)
+        """Embed list of document texts for ChromaDB with automatic fallback."""
+        try:
+            return self._embeddings.embed_documents(input)
+        except Exception as exc:
+            if "404" in str(exc) or "NOT_FOUND" in str(exc):
+                # Fall back to active embedding model (e.g. gemini-embedding-001)
+                fallback_emb = get_embeddings(model="models/gemini-embedding-001")
+                return fallback_emb.embed_documents(input)
+            raise exc
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         """Embed list of texts."""
-        return self._embeddings.embed_documents(texts)
+        return self(texts)
 
     def embed_query(self, query: str) -> List[float]:
-        """Embed a single query text."""
-        return self._embeddings.embed_query(query)
+        """Embed a single query text with automatic fallback."""
+        try:
+            return self._embeddings.embed_query(query)
+        except Exception as exc:
+            if "404" in str(exc) or "NOT_FOUND" in str(exc):
+                fallback_emb = get_embeddings(model="models/gemini-embedding-001")
+                return fallback_emb.embed_query(query)
+            raise exc
 
 
 # ---------------------------------------------------------------------------
 # 2. Dual LLM Setup (Gemini + OpenRouter)
 # ---------------------------------------------------------------------------
-def get_gemini_llm(api_key: Optional[str] = None) -> ChatGoogleGenerativeAI:
+def get_gemini_llm(
+    api_key: Optional[str] = None,
+    model: Optional[str] = None,
+) -> ChatGoogleGenerativeAI:
     """Initialize LLM 1: Google Gemini 1.5 Flash model."""
     key = api_key or os.getenv("GEMINI_API_KEY") or "placeholder_key"
+    model_name = model or os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
     return ChatGoogleGenerativeAI(
-        model="gemini-1.5-flash",
+        model=model_name,
         google_api_key=key,
         temperature=0.1,
     )
@@ -162,33 +186,59 @@ def evaluate_dispute_fairness(dispute_text: str) -> str:
         ),
     ]
 
-    # Attempt 1: Evaluate using Gemini LLM
+    # -----------------------------------------------------------------------
+    # Attempt 1: Evaluate using Gemini LLM (with model fallbacks)
+    # -----------------------------------------------------------------------
     current_gemini_key = os.getenv("GEMINI_API_KEY")
     if current_gemini_key and current_gemini_key != "placeholder_key":
-        try:
-            llm = get_gemini_llm(api_key=current_gemini_key)
-            response = llm.invoke(prompt_messages)
-            decision = _parse_decision_output(getattr(response, "content", str(response)))
-            if decision:
-                logger.info(f"[AI Engine] Gemini evaluated dispute fairness: {decision}")
-                return decision
-        except Exception as err:
-            logger.warning(f"[AI Engine] Gemini evaluation failed: {err}. Falling back to OpenRouter.")
+        gemini_candidates = [
+            os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
+            "gemini-2.5-flash",
+            "gemini-flash-latest",
+        ]
+        for model_name in dict.fromkeys(gemini_candidates):
+            try:
+                llm = get_gemini_llm(api_key=current_gemini_key, model=model_name)
+                response = llm.invoke(prompt_messages)
+                raw_decision = response.content if hasattr(response, "content") else str(response)
+                decision = _parse_decision_output(raw_decision)
+                if decision:
+                    logger.info(f"[AI Engine] Gemini ({model_name}) evaluated dispute: {decision}")
+                    return decision
+            except Exception as err:
+                if "404" in str(err) or "NOT_FOUND" in str(err):
+                    continue  # Try next available Gemini model
+                logger.warning(f"[AI Engine] Gemini ({model_name}) failed: {err}")
+                break
 
+    # -----------------------------------------------------------------------
     # Attempt 2: Evaluate using OpenRouter LLM fallback
+    # -----------------------------------------------------------------------
     current_openrouter_key = os.getenv("OPENROUTER_API_KEY")
     if current_openrouter_key and current_openrouter_key != "placeholder_key":
-        try:
-            llm = get_openrouter_llm(api_key=current_openrouter_key)
-            response = llm.invoke(prompt_messages)
-            decision = _parse_decision_output(getattr(response, "content", str(response)))
-            if decision:
-                logger.info(f"[AI Engine] OpenRouter evaluated dispute fairness: {decision}")
-                return decision
-        except Exception as err:
-            logger.warning(f"[AI Engine] OpenRouter evaluation failed: {err}.")
+        openrouter_candidates = [
+            os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.8b-instruct:free"),
+            "liquid/lfm-2.5-2.6b:free",
+            "nvidia/nemotron-3.5-lightning:free",
+        ]
+        for model_name in dict.fromkeys(openrouter_candidates):
+            try:
+                llm = get_openrouter_llm(api_key=current_openrouter_key, model=model_name)
+                response = llm.invoke(prompt_messages)
+                raw_decision = response.content if hasattr(response, "content") else str(response)
+                decision = _parse_decision_output(raw_decision)
+                if decision:
+                    logger.info(f"[AI Engine] OpenRouter ({model_name}) evaluated dispute: {decision}")
+                    return decision
+            except Exception as err:
+                if "not a valid model ID" in str(err) or "400" in str(err):
+                    continue  # Try next available OpenRouter free model
+                logger.warning(f"[AI Engine] OpenRouter ({model_name}) failed: {err}")
+                break
 
-    # Fallback heuristic: If no valid keys are set or both services are unreachable
+    # -----------------------------------------------------------------------
+    # Attempt 3: Deterministic heuristic fallback
+    # -----------------------------------------------------------------------
     lower_claim = dispute_text.lower()
     accept_indicators = [
         "merchant admitted fault",
