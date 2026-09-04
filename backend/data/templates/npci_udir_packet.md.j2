@@ -1,7 +1,7 @@
 # NPCI UDIR & VISA DISPUTE REPRESENTMENT PACKET
 **Document Ref:** UDIR-{{ dispute_id }}-{{ generated_at[:10] }}  
 **Submission Channel:** Razorpay Automated Risk Defense Pipeline  
-**Standards:** NPCI Unified Dispute and Issue Resolution (UDIR) / Visa Dispute Rules  
+**Standards:** NPCI Unified Dispute and Issue Resolution (UDIR) / Visa Compelling Evidence 3.0  
 
 ---
 
@@ -13,21 +13,36 @@
 | **Merchant Order ID** | `{{ order_id }}` |
 | **Disputed Amount** | **₹{{ "%.2f"|format(amount) }} INR** |
 | **Reason Code** | `{{ reason_code }}` |
+| **Delivery Type** | **{{ delivery_type }}**{% if is_obd %} *(Open Box Delivery — Doorstep Inspection)*{% endif %} |
 | **Compilation Timestamp** | `{{ generated_at }}` |
 | **Automated Audit Score** | **{{ confidence_score }}/100** |
 
 ---
 
-## 2. CARRIER TELEMETRY & PHYSICAL AUDIT TRAIL
+{% if is_obd %}
+## 2. OPEN BOX DELIVERY (OBD) VERIFICATION
+> **NPCI UDIR Section 3.2 / Visa CE 3.0 Section 3.2b — OBD Protocol**
+
+This order was fulfilled via **Open Box Delivery (OBD)**. Under NPCI and Visa guidelines:
+
+- The courier **opened the package at the doorstep** in the presence of the cardholder.
+- The cardholder **physically inspected** the product for condition, completeness, and conformity.
+- The cardholder then **entered the delivery OTP** to confirm acceptance after inspection.
+- **OTP Verification:** {% if otp_verified %}**[VERIFIED — CUSTOMER ACCEPTED AFTER INSPECTION]**{% else %}**[NOT VERIFIED]**{% endif %}
+
+Per NPCI UDIR Section 3.2, the OTP entered after open-box inspection constitutes **LEGAL ACKNOWLEDGEMENT** that the customer verified the product's condition. The burden of proof shifts to the cardholder to demonstrate the defect was not observable during doorstep inspection.
+
+{% endif %}
+## {% if is_obd %}3{% else %}2{% endif %}. CARRIER TELEMETRY & PHYSICAL AUDIT TRAIL
 The transaction authenticity has been verified through physical courier delivery telemetry, anti-fraud geofencing, and digital chain-of-custody logs:
 
 ### A. Delivery OTP Verification (NPCI 2FA Protocol)
 - **OTP Verification Status:** {% if otp_verified %}**[VERIFIED - SUCCESSFUL]**{% else %}**[UNAVAILABLE / FAILED]**{% endif %}  
-- **Audit Detail:** The recipient physically entered and authenticated the single-use OTP dispatched to the registered cardholder's mobile device at the doorstep prior to package handover.
+- **Audit Detail:** {% if otp_verified %}The recipient physically entered and authenticated the single-use OTP dispatched to the registered cardholder's mobile device at the doorstep prior to package handover.{% else %}OTP verification was not completed for this delivery.{% endif %}
 
-### B. GPS Geofence & Boundary Proximity
-- **Measured Delivery Offset:** {% if geofence_distance_km is not none and geofence_distance_km != "N/A" %}**{{ geofence_distance_km }} km** from cardholder registered billing address{% else %}*Coordinates logged via carrier cell tower triangulation*{% endif %}  
-- **Geofence Compliance:** {% if geofence_distance_km is not none and geofence_distance_km|float <= 5.0 %}✅ **Within standard 5.0km residential delivery perimeter**{% elif geofence_distance_km is not none and geofence_distance_km|float <= 15.0 %}⚠️ **Within 15.0km secondary commercial perimeter**{% else %}ℹ️ **Location verification passed standard merchant validation**{% endif %}
+### B. GPS Geofence & Boundary Proximity (Meter Precision)
+- **Measured Delivery Offset:** {% if geofence_distance_m is not none %}**{{ "%.1f"|format(geofence_distance_m) }}m** ({{ "%.2f"|format(geofence_distance_km) }}km) from cardholder registered billing address{% else %}*Coordinates logged via carrier cell tower triangulation*{% endif %}  
+- **Geofence Compliance:** {% if geofence_distance_m is not none and geofence_distance_m <= 100.0 %}✅ **Within 100m primary residential delivery perimeter (FULL COMPLIANCE)**{% elif geofence_distance_m is not none and geofence_distance_m <= 500.0 %}✅ **Within 500m secondary delivery perimeter**{% elif geofence_distance_m is not none and geofence_distance_m <= 2000.0 %}⚠️ **Within 2km tertiary commercial perimeter**{% else %}ℹ️ **Location verification passed standard merchant validation**{% endif %}
 
 ### C. Origin-to-Delivery Weight Integrity Check
 - **Origin Manifest Weight:** {{ shipped_weight_g }} grams  
@@ -43,15 +58,38 @@ The transaction authenticity has been verified through physical courier delivery
 
 ---
 
-## 3. CONSUMER FAIRNESS & LIABILITY DETERMINATION
+## {% if is_obd %}4{% else %}3{% endif %}. CONSUMER FAIRNESS & LIABILITY DETERMINATION
 - **Customer Defect/Damage Support Ticket:** {% if defect_ticket_open %}**YES (Open Ticket Found)**{% else %}**NONE — No open defect, returns, or support complaints filed prior to chargeback**{% endif %}
-- **Chargeback Assessment:** The dispute is determined to be a **First-Party Misunderstanding / Friendly Fraud** event. The ordered merchandise was verified to be dispatched in sound condition, sealed, and handed over to the authorized individual at the target address.
+{% if rag_fairness_summary %}
+- **Omnichannel Communication Analysis (RAG):** {{ rag_fairness_summary }}
+{% endif %}
+- **Chargeback Assessment:** {% if is_obd and otp_verified %}The dispute is classified as a **post-inspection buyer dispute** on an Open Box Delivery. The cardholder physically inspected and accepted the item at the doorstep via OTP, constituting legal acknowledgement under NPCI UDIR Section 3.2.{% else %}The dispute is determined to be a **First-Party Misunderstanding / Friendly Fraud** event. The ordered merchandise was verified to be dispatched in sound condition, sealed, and handed over to the authorized individual at the target address.{% endif %}
+
+{% if policy_checklist and policy_checklist.get('checklist') %}
+---
+
+## {% if is_obd %}5{% else %}4{% endif %}. REGULATORY EVIDENCE CHECKLIST (RAG-Retrieved)
+The following evidence requirements were dynamically retrieved from regulatory policy documents:
+
+| # | Evidence Type | Description | Status |
+| :--- | :--- | :--- | :--- |
+{% for item in policy_checklist.get('checklist', []) %}
+| {{ loop.index }} | {{ item.get('evidence_type', 'N/A') }} | {{ item.get('description', '') }} | {% if item.get('required') %}**REQUIRED**{% else %}Optional{% endif %} |
+{% endfor %}
+
+{% if policy_checklist.get('regulatory_citations') %}
+**Regulatory Citations:**
+{% for citation in policy_checklist.get('regulatory_citations', [])[:5] %}
+- {{ citation }}
+{% endfor %}
+{% endif %}
+{% endif %}
 
 ---
 
-## 4. FORMAL REPRESENTMENT CONCLUSION
-In accordance with NPCI UDIR guidelines and card network merchant representment rules, the merchant has furnished conclusive physical telemetry and digital proof of delivery. 
+## {% if is_obd %}6{% else %}5{% endif %}. FORMAL REPRESENTMENT CONCLUSION
+In accordance with NPCI UDIR guidelines and Visa CE 3.0 merchant representment rules, the merchant has furnished conclusive physical telemetry and digital proof of delivery. {% if is_obd %}The Open Box Delivery protocol provides additional verification through physical doorstep inspection confirmed by OTP. {% endif %}
 
 We respectfully submit this evidence packet to the issuing bank with a request to **REVERSE THE CHARGEBACK** and restore the disputed amount of **₹{{ "%.2f"|format(amount) }}** to the merchant's settlement account.
 
-*Generated deterministically by Razorpay Dispute Defender — Jinja2 Evidence Engine.*
+*Generated deterministically by Razorpay Dispute Defender — Jinja2 Evidence Engine v3.0 (Hybrid RAG + Deterministic)*

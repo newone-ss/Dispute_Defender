@@ -1,7 +1,7 @@
 """SQLAlchemy ORM models for Dispute Defender.
 
 Stores core dispute records, status flags, scores, raw courier telemetry,
-scanned manifest OCR data, and compiled NPCI UDIR evidence packets.
+scanned manifest OCR data, RAG analysis results, and compiled NPCI UDIR evidence packets.
 """
 
 from sqlalchemy import Column, Integer, String, Float, Text, DateTime, Enum as SAEnum, Boolean
@@ -45,15 +45,26 @@ class Dispute(Base):
     amount = Column(Float, nullable=False, default=0.0)          # In INR
     confidence_score = Column(Float, nullable=True)               # 0.0 – 100.0
 
+    # --- Delivery type (OBD routing) ---
+    delivery_type = Column(String(32), nullable=True, default="STANDARD")  # STANDARD | OPEN_BOX | LOCKER
+
     # --- Telemetry evaluation breakdown ---
     otp_verified = Column(Boolean, nullable=True)
-    geofence_distance_km = Column(Float, nullable=True)
+    geofence_distance_km = Column(Float, nullable=True)          # Legacy km field
+    geofence_distance_m = Column(Float, nullable=True)           # Precision meters field
     shipped_weight_g = Column(Float, nullable=True)
     delivered_weight_g = Column(Float, nullable=True)
     weight_loss_g = Column(Float, nullable=True)
     defect_ticket_open = Column(Boolean, default=False)
     fairness_gate_triggered = Column(Boolean, default=False)
     fairness_reason = Column(String(255), nullable=True)
+
+    # --- RAG Fairness Gate ---
+    rag_fairness_triggered = Column(Boolean, default=False)
+    rag_fairness_summary = Column(Text, nullable=True)           # LLM summary of retrieved chat evidence
+
+    # --- Policy RAG ---
+    policy_checklist_json = Column(Text, nullable=True)           # JSON evidence requirements for reason_code
 
     # --- Evidence & OCR ---
     evidence_text = Column(Text, nullable=True)                   # Compiled NPCI UDIR markdown packet
@@ -72,5 +83,6 @@ class Dispute(Base):
     def __repr__(self) -> str:
         return (
             f"<Dispute(id={self.id}, dispute_id='{self.dispute_id}', "
-            f"status={self.status}, score={self.confidence_score})>"
+            f"status={self.status}, score={self.confidence_score}, "
+            f"delivery_type={self.delivery_type})>"
         )
