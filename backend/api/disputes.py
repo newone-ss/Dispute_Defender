@@ -1,9 +1,11 @@
-"""Disputes, Metrics, and Telemetry management router for Razorpay Dispute Defender."""
+"""Disputes, Metrics, Telemetry, and Simulation router for Razorpay Dispute Defender."""
 
 import logging
+import os
+import random
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -30,6 +32,19 @@ class TelemetryCreate(BaseModel):
 class EvaluateDisputeRequest(BaseModel):
     """Payload to trigger LLM dispute fairness assessment."""
     dispute_text: str
+
+
+class ManualOverrideRequest(BaseModel):
+    """Payload for human risk operator decision override."""
+    action: str
+    operator_note: Optional[str] = "Manual operator override"
+
+
+class SimulateRequest(BaseModel):
+    """Payload to inject synthetic dispute scenarios."""
+    scenario: Optional[str] = "winnable_clean"
+    reason_code: Optional[str] = "product_not_received"
+    amount_inr: Optional[float] = 2499.0
 
 
 # ---------------------------------------------------------------------------
@@ -132,6 +147,44 @@ def get_dispute(dispute_id: str, db: Session = Depends(get_db)) -> Dict[str, Any
     }
 
 
+@router.post("/disputes/{dispute_id}/override")
+def manual_override(
+    dispute_id: str,
+    req: ManualOverrideRequest,
+    x_admin_token: Optional[str] = Header(None, alias="X-Admin-Token"),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Authenticate via X-Admin-Token and force dispute state change."""
+    expected_token = os.getenv("ADMIN_OVERRIDE_TOKEN", "admin_secret_token_override_99")
+    if not x_admin_token or x_admin_token != expected_token:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or missing X-Admin-Token authorization header",
+        )
+
+    dispute = db.query(Dispute).filter(Dispute.dispute_id == dispute_id).first()
+    if not dispute:
+        dispute = Dispute(
+            dispute_id=dispute_id,
+            status="under_review",
+            amount=149900,
+        )
+        db.add(dispute)
+        db.flush()
+
+    new_status = "contested" if req.action.lower() == "contest" else "accepted"
+    dispute.status = new_status
+    db.commit()
+
+    return {
+        "status": "ok",
+        "dispute_id": dispute_id,
+        "new_status": new_status,
+        "message": f"Dispute successfully transitioned to {new_status}",
+        "operator_note": req.operator_note,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Telemetry Seeder Endpoint (enables full contestation testing)
 # ---------------------------------------------------------------------------
@@ -159,6 +212,50 @@ def register_telemetry(payload: TelemetryCreate, db: Session = Depends(get_db)) 
         "otp_verified": payload.otp_verified,
         "delivery_type": payload.delivery_type,
         "gps_distance_meters": payload.gps_distance_meters,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Simulation Endpoint
+# ---------------------------------------------------------------------------
+@router.post("/simulate")
+def simulate_scenario(req: SimulateRequest, db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """Inject synthetic courier telemetry and dispute scenario."""
+    rnd = random.randint(100000, 999999)
+    disp_id = f"disp_sim_{rnd}"
+    pay_id = f"pay_sim_{rnd}"
+    amount_paise = int((req.amount_inr or 2499.0) * 100)
+
+    is_otp = req.scenario != "fraud_no_otp"
+    telemetry = Telemetry(
+        payment_id=pay_id,
+        delivery_type="OPEN_BOX" if "obd" in (req.scenario or "") else "STANDARD",
+        otp_verified=is_otp,
+        gps_distance_meters=18.0 if is_otp else 12500.0,
+    )
+    db.add(telemetry)
+
+    status = "contested" if is_otp else "needs_review"
+    dispute = Dispute(
+        dispute_id=disp_id,
+        payment_id=pay_id,
+        reason_code=req.reason_code or "product_not_received",
+        amount=amount_paise,
+        status=status,
+    )
+    db.add(dispute)
+    db.commit()
+
+    return {
+        "id": dispute.id,
+        "dispute_id": disp_id,
+        "payment_id": pay_id,
+        "reason_code": dispute.reason_code,
+        "amount_paise": amount_paise,
+        "amount_inr": req.amount_inr,
+        "status": status,
+        "scenario": req.scenario,
+        "otp_verified": is_otp,
     }
 
 
