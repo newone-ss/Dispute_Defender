@@ -20,6 +20,14 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "sqlite:///./data/mock_db/disputes.db"
 
+    # ChromaDB vector store
+    chromadb_path: str = "./data/mock_db/chroma_db"
+
+    # GPS geofence thresholds (meters)
+    geofence_primary_radius_m: float = 100.0     # Full points
+    geofence_secondary_radius_m: float = 500.0   # 80% points
+    geofence_tertiary_radius_m: float = 2000.0   # Linear falloff
+
     # LLM Vision / OCR optional keys
     gemini_api_key: str = ""
     openai_api_key: str = ""

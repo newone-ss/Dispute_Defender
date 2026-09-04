@@ -1,0 +1,81 @@
+VISA COMPELLING EVIDENCE 3.0 (CE 3.0) — DISPUTE RESOLUTION RULES
+Effective: April 2024 | Updated: January 2025
+================================================================
+
+SECTION 1: OVERVIEW
+---
+1.1 Visa CE 3.0 establishes enhanced evidence requirements for merchants contesting
+    chargebacks under Visa reason codes 13.1, 13.2, 13.3, and 10.4.
+1.2 Merchants who provide qualifying "compelling evidence" shift the liability
+    back to the issuer. Qualifying evidence must demonstrate the legitimate nature
+    of the transaction beyond reasonable doubt.
+
+SECTION 2: REASON CODE 13.1 — MERCHANDISE NOT RECEIVED
+---
+2.1 The cardholder claims they did not receive purchased merchandise.
+2.2 Compelling Evidence Requirements:
+    a) Proof of delivery to the cardholder's address:
+       - Signed delivery receipt with recipient name
+       - GPS coordinates showing delivery within 100 meters of billing address
+       - Delivery photo with timestamp
+    b) Tracking information from a recognized carrier:
+       - Carrier name and AWB/tracking number
+       - Status showing "Delivered" with date/time
+    c) OTP verification (if applicable):
+       - Doorstep OTP matching cardholder's registered mobile
+       - OTP timestamp correlating with delivery timestamp
+    d) Device fingerprint:
+       - Matching device ID between checkout session and prior legitimate transactions
+       - At least TWO prior undisputed transactions from the same device
+2.3 If the merchant provides GPS proof (within 100m) AND delivery OTP AND
+    carrier tracking confirmation, this constitutes "strong compelling evidence"
+    and the chargeback should be reversed.
+
+SECTION 3: REASON CODE 13.2 — DEFECTIVE OR NOT AS DESCRIBED
+---
+3.1 The cardholder claims merchandise was defective, damaged, or not as described.
+3.2 Compelling Evidence Requirements:
+    a) For standard delivery:
+       - Quality control inspection report at fulfillment center
+       - Product photographs from packaging stage
+       - Customer communication logs showing no prior complaint
+       - Return merchandise authorization (RMA) offered but not used
+    b) For Open Box Delivery (OBD):
+       - OTP verification serves as proof of physical inspection at doorstep
+       - Customer opened and examined the product before entering OTP
+       - Weight integrity check (origin vs. doorstep)
+       - This constitutes strong compelling evidence under CE 3.0
+    c) Omnichannel communication analysis:
+       - If the customer raised a complaint via WhatsApp, email, chat, or Zendesk
+         BEFORE filing the chargeback, the merchant should accept the dispute
+       - Contesting known legitimate complaints is considered bad faith
+3.3 Time limit for response: 30 calendar days from dispute notification.
+
+SECTION 4: REASON CODE 13.3 — CREDIT NOT ISSUED
+---
+4.1 The cardholder claims a credit/refund was promised but not received.
+4.2 Compelling Evidence:
+    - Refund processing receipt with ARN (Acquirer Reference Number)
+    - Refund settlement timestamp from payment gateway
+    - Customer acknowledgement of refund receipt
+4.3 If refund was processed, provide the ARN as primary evidence.
+
+SECTION 5: REASON CODE 10.4 — FRAUD / CARD ABSENT ENVIRONMENT
+---
+5.1 The cardholder claims they did not authorize the transaction.
+5.2 CE 3.0 Enhanced Evidence (minimum TWO of the following):
+    a) IP address matching cardholder's historical pattern
+    b) Device ID/fingerprint matching prior undisputed transactions
+    c) Delivery address matching cardholder's billing address (GPS verified)
+    d) Phone number matching (OTP sent to registered number)
+5.3 If the merchant provides at least two qualifying data points from the above,
+    combined with delivery confirmation, the issuer must reverse the chargeback.
+
+SECTION 6: EVIDENCE QUALITY STANDARDS
+---
+6.1 All evidence must be machine-readable and verifiable.
+6.2 GPS coordinates must have accuracy within 100 meters.
+6.3 Timestamps must be in ISO 8601 format with timezone.
+6.4 Weight measurements must include both origin and delivery readings in grams.
+6.5 Customer communications must include channel (WhatsApp/Email/Chat), timestamp,
+    and full message content or summary.

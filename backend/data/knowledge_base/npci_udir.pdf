@@ -1,0 +1,92 @@
+NPCI UNIFIED DISPUTE AND ISSUE RESOLUTION (UDIR) FRAMEWORK
+Version 3.2 — Effective Date: January 2025
+================================================================
+
+CHAPTER 1: SCOPE AND APPLICABILITY
+---
+1.1 This framework governs all disputes arising from domestic debit card, credit card,
+    UPI, and prepaid instrument transactions processed through NPCI infrastructure.
+1.2 All acquiring banks and payment aggregators (including Razorpay, PayU, CCAvenue)
+    must comply with UDIR timelines and evidence requirements.
+
+CHAPTER 2: DISPUTE REASON CODES AND CATEGORIZATION
+---
+2.1 REASON CODE: PRODUCT_NOT_RECEIVED (RC-001)
+    Definition: Cardholder claims merchandise was not delivered.
+    Required Merchant Evidence:
+    - Proof of shipment (courier AWB with tracking number)
+    - GPS-verified delivery confirmation within 100 meters of billing address
+    - Delivery OTP verification (if applicable)
+    - Signed proof of delivery (POD) or electronic acknowledgement
+    - Weight reconciliation between origin hub and delivery point
+    Time limit: Merchant must respond within 7 working days of dispute notification.
+
+2.2 REASON CODE: DEFECTIVE_MERCHANDISE (RC-002)
+    Definition: Cardholder claims product was defective, damaged, or not as described.
+    Required Merchant Evidence:
+    - For STANDARD delivery: Quality inspection report, return shipping label offered,
+      customer communication logs showing no prior complaint before chargeback.
+    - For OPEN BOX DELIVERY (OBD): OTP verification serves as legal proof of physical
+      inspection. Customer inspected item at doorstep before accepting delivery.
+      OBD OTP alone constitutes compelling evidence under NPCI guidelines.
+    - Customer support interaction history (emails, WhatsApp, Zendesk tickets)
+    - Product photographs from quality control checkpoint
+    Time limit: 10 working days for defective merchandise disputes.
+
+2.3 REASON CODE: FRAUDULENT_TRANSACTION (RC-003)
+    Definition: Cardholder denies authorizing the transaction.
+    Required Merchant Evidence:
+    - Device fingerprint matching checkout session
+    - IP address and geolocation data
+    - 3D Secure authentication log (if applicable)
+    - Delivery to cardholder's registered address with GPS proof
+    - OTP verification at doorstep
+    Time limit: 5 working days for fraud-related disputes.
+
+2.4 REASON CODE: DUPLICATE_BILLING (RC-004)
+    Definition: Cardholder was charged multiple times for same transaction.
+    Required Merchant Evidence:
+    - Transaction logs showing single charge
+    - Payment gateway settlement records
+    - Order management system showing single fulfillment
+    Time limit: 7 working days.
+
+2.5 REASON CODE: SUBSCRIPTION_UNAUTHORIZED (RC-005)
+    Definition: Cardholder claims they did not authorize recurring subscription.
+    Required Merchant Evidence:
+    - Subscription enrollment confirmation (email/SMS)
+    - Terms acceptance log with timestamp
+    - Cancellation policy communicated at enrollment
+    - Prior successful billing history
+    Time limit: 7 working days.
+
+CHAPTER 3: OPEN BOX DELIVERY (OBD) PROTOCOL
+---
+3.1 When delivery_type is OPEN_BOX, the courier opens the package at the doorstep
+    and the customer physically inspects the product before entering the OTP.
+3.2 The OTP entered after inspection constitutes LEGAL ACKNOWLEDGEMENT that the
+    customer has verified the product's condition, completeness, and conformity.
+3.3 For defective_merchandise disputes on OBD deliveries, the merchant may submit
+    the OTP verification timestamp as primary compelling evidence. The burden of
+    proof shifts to the cardholder to demonstrate the defect was not observable
+    during doorstep inspection.
+3.4 Weight delta verification for OBD is measured at origin hub vs. doorstep scale.
+
+CHAPTER 4: CONSUMER FAIRNESS AND ZERO-LIABILITY
+---
+4.1 If the merchant has an open customer support ticket (Zendesk, WhatsApp, email)
+    acknowledging a product defect PRIOR to the chargeback filing date, the merchant
+    should proactively accept the dispute to avoid the Rs. 1,500 bank penalty fee.
+4.2 If transit weight loss exceeds 100 grams, this indicates potential package
+    tampering or missing contents. The merchant should accept the dispute.
+4.3 Merchants who contest disputes in bad faith (ignoring known defects) face
+    cumulative penalty fees and potential merchant category code downgrade.
+
+CHAPTER 5: EVIDENCE SUBMISSION FORMAT
+---
+5.1 All evidence must be submitted as structured documents via the acquiring bank's
+    API (e.g., Razorpay POST /v1/documents with purpose=dispute_evidence).
+5.2 Evidence packets should include: transaction identifiers, telemetry data,
+    proof of delivery, GPS coordinates, weight reconciliation, and customer
+    communication history.
+5.3 The representment narrative must reference specific UDIR section numbers.

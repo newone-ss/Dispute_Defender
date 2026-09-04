@@ -1,4 +1,4 @@
-﻿# Environment variables
+# Environment variables
 .env
 *.env.local
 *.env.*.local
@@ -18,7 +18,8 @@ ENV/
 *.db
 *.sqlite
 *.sqlite3
-backend/data/mock_db/*.db
+backend/data/mock_db/
+chroma_db/
 
 # Node.js
 node_modules/

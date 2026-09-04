@@ -8,3 +8,4 @@ httpx>=0.25.2
 python-dotenv>=1.0.0
 razorpay>=1.4.1
 python-multipart>=0.0.6
+chromadb>=0.4.22
