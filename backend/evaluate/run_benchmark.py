@@ -1,5 +1,7 @@
 """Benchmark Runner — evaluates Dispute Defender on ground-truth dataset and calculates financial ROI.
 
+Includes OBD (Open Box Delivery), RAG Fairness Gate, and Reason-Code Routing accuracy.
+
 Usage:
     cd backend
     python -m evaluate.run_benchmark
@@ -39,7 +41,27 @@ def run_benchmark():
     # Expand to 50 test cases if dataset is small
     while len(test_cases) < 50:
         idx = len(test_cases) + 1
-        if idx % 3 == 0:
+        if idx % 5 == 0:
+            # OBD case
+            test_cases.append({
+                "id": f"GT-{idx:03d}",
+                "dispute_id": f"disp_synth_{idx:03d}",
+                "amount": round(random.uniform(8000, 40000), 2),
+                "expected_decision": "AUTO_CONTESTED",
+                "category": "obd_clean",
+                "delivery_type": "OPEN_BOX",
+                "reason_code": "product_not_received",
+                "telemetry": {
+                    "otp": {"verified": True},
+                    "geofence": {"distance_km": round(random.uniform(0.02, 0.06), 3)},
+                    "weight": {"shipped_g": 800, "delivered_g": 798},
+                    "delivery_signature": True,
+                    "device_fingerprint_match": True,
+                    "defect_ticket_open": False,
+                    "delivery_type": "OPEN_BOX",
+                },
+            })
+        elif idx % 4 == 0:
             # Defect case
             test_cases.append({
                 "id": f"GT-{idx:03d}",
@@ -49,13 +71,13 @@ def run_benchmark():
                 "category": "consumer_defect",
                 "telemetry": {
                     "otp": {"verified": True},
-                    "geofence": {"distance_km": 1.0},
+                    "geofence": {"distance_km": 0.05},
                     "weight": {"shipped_g": 500, "delivered_g": 500},
                     "delivery_signature": True,
                     "defect_ticket_open": True,
                 },
             })
-        elif idx % 4 == 0:
+        elif idx % 7 == 0:
             # Ambiguous/Fraud
             test_cases.append({
                 "id": f"GT-{idx:03d}",
@@ -65,7 +87,7 @@ def run_benchmark():
                 "category": "ambiguous",
                 "telemetry": {
                     "otp": {"verified": False},
-                    "geofence": {"distance_km": 8.0},
+                    "geofence": {"distance_km": 0.4},
                     "weight": {"shipped_g": 500, "delivered_g": 490},
                     "delivery_signature": True,
                     "device_fingerprint_match": False,
@@ -81,7 +103,7 @@ def run_benchmark():
                 "category": "winnable",
                 "telemetry": {
                     "otp": {"verified": True},
-                    "geofence": {"distance_km": 0.8},
+                    "geofence": {"distance_km": round(random.uniform(0.02, 0.08), 3)},
                     "weight": {"shipped_g": 650, "delivered_g": 645},
                     "delivery_signature": True,
                     "device_fingerprint_match": True,
@@ -91,6 +113,7 @@ def run_benchmark():
 
     print("\n" + "=" * 78)
     print("🛡️  RAZORPAY DISPUTE DEFENDER — EVALUATION & FINANCIAL ROI BENCHMARK")
+    print("   Architecture: Hybrid RAG + Deterministic | OBD Routing | Meter GPS")
     print("=" * 78)
     print(f"  Execution Time   : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"  Benchmark Cases  : {len(test_cases)}")
@@ -100,6 +123,10 @@ def run_benchmark():
     correct_decisions = 0
     fairness_gate_success = 0
     total_fairness_cases = 0
+    obd_correct = 0
+    total_obd_cases = 0
+    reason_route_correct = 0
+    total_reason_route_cases = 0
 
     results = {
         "AUTO_CONTESTED": [],
@@ -109,7 +136,14 @@ def run_benchmark():
 
     for case in test_cases:
         raw_json = json.dumps(case["telemetry"])
-        audit = evaluate_telemetry(raw_json)
+        delivery_type = case.get("delivery_type") or case["telemetry"].get("delivery_type", "STANDARD")
+        reason_code = case.get("reason_code") or case.get("telemetry", {}).get("reason_code")
+
+        audit = evaluate_telemetry(
+            raw_telemetry=raw_json,
+            delivery_type=delivery_type,
+            reason_code=reason_code,
+        )
         actual_decision = audit.decision.value
         expected_decision = case.get("expected_decision")
 
@@ -117,6 +151,19 @@ def run_benchmark():
         if is_correct:
             correct_decisions += 1
 
+        # Track OBD accuracy
+        if delivery_type and delivery_type.upper() == "OPEN_BOX":
+            total_obd_cases += 1
+            if is_correct:
+                obd_correct += 1
+
+        # Track reason-code routing accuracy
+        if reason_code and reason_code == "defective_merchandise":
+            total_reason_route_cases += 1
+            if is_correct:
+                reason_route_correct += 1
+
+        # Track fairness gate accuracy
         is_defect_case = (
             case["telemetry"].get("defect_ticket_open") is True
             or (case["telemetry"].get("weight", {}).get("shipped_g", 0) - case["telemetry"].get("weight", {}).get("delivered_g", 0) > 100)
@@ -127,12 +174,14 @@ def run_benchmark():
                 fairness_gate_success += 1
 
         results[actual_decision].append({
-            "id": case["dispute_id"],
+            "id": case.get("dispute_id", case.get("id", "unknown")),
             "amount": case["amount"],
             "score": audit.confidence_score,
             "fairness_triggered": audit.fairness_gate_triggered,
             "otp": audit.otp_verified,
-            "geo_km": audit.geofence_distance_km,
+            "geo_m": audit.geofence_distance_m,
+            "delivery_type": delivery_type,
+            "route": audit.reason_code_route,
         })
 
     # Financial Impact Calculations
@@ -145,10 +194,6 @@ def run_benchmark():
     accepted_amount = sum(d["amount"] for d in auto_accepted)
     total_exposure = contested_amount + review_amount + accepted_amount
 
-    # Financial Win Model:
-    # - Auto-contested cases backed by OTP + GPS win at ~85%
-    # - Reviewed cases win at ~50%
-    # - Auto-accepting genuine defect/loss cases avoids the ₹1,500 bank penalty
     revenue_recovered_contested = contested_amount * 0.85
     revenue_recovered_review = review_amount * 0.50
     penalty_fees_avoided = len(auto_accepted) * PENALTY_FEE_PER_AVOIDED_CASE
@@ -156,11 +201,15 @@ def run_benchmark():
 
     accuracy = (correct_decisions / len(test_cases)) * 100.0
     fairness_accuracy = (fairness_gate_success / total_fairness_cases * 100.0) if total_fairness_cases > 0 else 100.0
+    obd_accuracy = (obd_correct / total_obd_cases * 100.0) if total_obd_cases > 0 else 100.0
+    route_accuracy = (reason_route_correct / total_reason_route_cases * 100.0) if total_reason_route_cases > 0 else 100.0
 
     print("\n📊 CLASSIFICATION & PIPELINE ACCURACY")
     print("─" * 60)
     print(f"  Overall Decision Accuracy     : {accuracy:>6.1f}% ({correct_decisions}/{len(test_cases)})")
     print(f"  Consumer Fairness Gate Acc    : {fairness_accuracy:>6.1f}% ({fairness_gate_success}/{total_fairness_cases})")
+    print(f"  OBD Routing Accuracy          : {obd_accuracy:>6.1f}% ({obd_correct}/{total_obd_cases})")
+    print(f"  Reason-Code Router Accuracy   : {route_accuracy:>6.1f}% ({reason_route_correct}/{total_reason_route_cases})")
     print(f"  AUTO_CONTESTED (Score > 80)   : {len(auto_contested):>3d} cases  |  ₹{contested_amount:>12,.2f}")
     print(f"  NEEDS_REVIEW   (Score 40-80)  : {len(needs_review):>3d} cases  |  ₹{review_amount:>12,.2f}")
     print(f"  AUTO_ACCEPTED  (Score < 40)   : {len(auto_accepted):>3d} cases  |  ₹{accepted_amount:>12,.2f}")
@@ -173,22 +222,28 @@ def run_benchmark():
     print(f"  Bank Penalties Avoided (₹1.5k): ₹{penalty_fees_avoided:>12,.2f}")
     print(f"  {'─'*40}")
     print(f"  ✨ NET FINANCIAL IMPACT       : ₹{total_financial_savings:>12,.2f}")
-    print(f"  ✨ EFFECTIVE ROI BOOST        : {((total_financial_savings / total_exposure) * 100):>6.1f}% of total exposure")
+    if total_exposure > 0:
+        print(f"  ✨ EFFECTIVE ROI BOOST        : {((total_financial_savings / total_exposure) * 100):>6.1f}% of total exposure")
 
-    print("\n📋 SAMPLE DISPUTE EVALUATION TRACE (First 8)")
-    print("─" * 78)
-    print(f"  {'Dispute ID':<18} {'Score':>7} {'OTP':^5} {'GPS (km)':>8} {'Decision':<16} {'Amount':>10}")
-    print(f"  {'─'*18} {'─'*7} {'─'*5} {'─'*8} {'─'*16} {'─'*10}")
+    print("\n📋 SAMPLE DISPUTE EVALUATION TRACE (First 10)")
+    print("─" * 90)
+    print(f"  {'Dispute ID':<18} {'Score':>7} {'OTP':^5} {'GPS (m)':>8} {'Type':<10} {'Decision':<16} {'Amount':>10}")
+    print(f"  {'─'*18} {'─'*7} {'─'*5} {'─'*8} {'─'*10} {'─'*16} {'─'*10}")
     all_sample = []
     for dec, items in results.items():
         for it in items:
-            all_sample.append((it["id"], it["score"], "✅" if it["otp"] else "❌", f"{it['geo_km']}km" if it['geo_km'] else "N/A", dec, it["amount"]))
+            geo_str = f"{it['geo_m']:.0f}m" if it['geo_m'] is not None else "N/A"
+            all_sample.append((
+                it["id"], it["score"], "✅" if it["otp"] else "❌",
+                geo_str, it.get("delivery_type", "STD")[:8],
+                dec, it["amount"],
+            ))
 
-    for row in all_sample[:8]:
-        print(f"  {row[0]:<18} {row[1]:>7.1f} {row[2]:^5} {row[3]:>8} {row[4]:<16} ₹{row[5]:>9,.2f}")
+    for row in all_sample[:10]:
+        print(f"  {row[0]:<18} {row[1]:>7.1f} {row[2]:^5} {row[3]:>8} {row[4]:<10} {row[5]:<16} ₹{row[6]:>9,.2f}")
 
     print("\n" + "=" * 78)
-    print("✅ Benchmark suite completed successfully.")
+    print("✅ Benchmark suite completed successfully (Hybrid RAG + Deterministic v3.0).")
     print("=" * 78 + "\n")
 
 

@@ -8,7 +8,7 @@
     "category": "legitimate_delivery",
     "telemetry": {
       "otp": {"verified": true},
-      "geofence": {"distance_km": 0.4},
+      "geofence": {"distance_km": 0.04},
       "weight": {"shipped_g": 520, "delivered_g": 515},
       "delivery_signature": true,
       "device_fingerprint_match": true,
@@ -24,7 +24,7 @@
     "category": "legitimate_delivery",
     "telemetry": {
       "otp": {"verified": true},
-      "geofence": {"distance_km": 1.2},
+      "geofence": {"distance_km": 0.08},
       "weight": {"shipped_g": 1200, "delivered_g": 1190},
       "delivery_signature": true,
       "device_fingerprint_match": true,
@@ -40,7 +40,7 @@
     "category": "consumer_defect_ticket",
     "telemetry": {
       "otp": {"verified": true},
-      "geofence": {"distance_km": 0.5},
+      "geofence": {"distance_km": 0.05},
       "weight": {"shipped_g": 500, "delivered_g": 500},
       "delivery_signature": true,
       "defect_ticket_open": true,
@@ -56,7 +56,7 @@
     "category": "transit_weight_loss",
     "telemetry": {
       "otp": {"verified": true},
-      "geofence": {"distance_km": 0.9},
+      "geofence": {"distance_km": 0.09},
       "weight": {"shipped_g": 1500, "delivered_g": 1220},
       "delivery_signature": true,
       "defect_ticket_open": false
@@ -87,7 +87,7 @@
     "category": "ambiguous_boundary",
     "telemetry": {
       "otp": {"verified": false},
-      "geofence": {"distance_km": 8.5},
+      "geofence": {"distance_km": 0.45},
       "weight": {"shipped_g": 500, "delivered_g": 490},
       "delivery_signature": true,
       "device_fingerprint_match": false,
@@ -103,7 +103,7 @@
     "category": "legitimate_delivery",
     "telemetry": {
       "otp": {"verified": true},
-      "geofence": {"distance_km": 0.2},
+      "geofence": {"distance_km": 0.02},
       "weight": {"shipped_g": 2400, "delivered_g": 2390},
       "delivery_signature": true,
       "device_fingerprint_match": true,
@@ -119,7 +119,7 @@
     "category": "consumer_defect_ticket",
     "telemetry": {
       "otp": {"verified": true},
-      "geofence": {"distance_km": 1.0},
+      "geofence": {"distance_km": 0.1},
       "weight": {"shipped_g": 700, "delivered_g": 695},
       "delivery_signature": true,
       "defect_ticket_open": true
@@ -134,7 +134,7 @@
     "category": "legitimate_delivery",
     "telemetry": {
       "otp": {"verified": true},
-      "geofence": {"distance_km": 2.1},
+      "geofence": {"distance_km": 0.07},
       "weight": {"shipped_g": 850, "delivered_g": 840},
       "delivery_signature": true,
       "device_fingerprint_match": true,
@@ -150,9 +150,99 @@
     "category": "transit_weight_loss",
     "telemetry": {
       "otp": {"verified": true},
-      "geofence": {"distance_km": 1.4},
+      "geofence": {"distance_km": 0.14},
       "weight": {"shipped_g": 600, "delivered_g": 410},
       "delivery_signature": true,
+      "defect_ticket_open": false
+    }
+  },
+  {
+    "id": "GT-011",
+    "dispute_id": "disp_eval_011",
+    "amount": 22000.0,
+    "expected_decision": "AUTO_CONTESTED",
+    "expected_min_score": 80.0,
+    "category": "obd_clean_delivery",
+    "delivery_type": "OPEN_BOX",
+    "reason_code": "product_not_received",
+    "telemetry": {
+      "otp": {"verified": true},
+      "geofence": {"distance_km": 0.03},
+      "weight": {"shipped_g": 900, "delivered_g": 898},
+      "delivery_signature": true,
+      "device_fingerprint_match": true,
+      "defect_ticket_open": false,
+      "delivery_type": "OPEN_BOX"
+    }
+  },
+  {
+    "id": "GT-012",
+    "dispute_id": "disp_eval_012",
+    "amount": 35000.0,
+    "expected_decision": "AUTO_CONTESTED",
+    "expected_min_score": 80.0,
+    "category": "obd_defective_override",
+    "delivery_type": "OPEN_BOX",
+    "reason_code": "defective_merchandise",
+    "telemetry": {
+      "otp": {"verified": true},
+      "geofence": {"distance_km": 0.05},
+      "weight": {"shipped_g": 1200, "delivered_g": 1198},
+      "delivery_signature": true,
+      "device_fingerprint_match": true,
+      "defect_ticket_open": false,
+      "delivery_type": "OPEN_BOX"
+    }
+  },
+  {
+    "id": "GT-013",
+    "dispute_id": "disp_eval_013",
+    "amount": 8500.0,
+    "expected_decision": "NEEDS_REVIEW",
+    "category": "standard_defective_skip_telemetry",
+    "delivery_type": "STANDARD",
+    "reason_code": "defective_merchandise",
+    "telemetry": {
+      "otp": {"verified": true},
+      "geofence": {"distance_km": 0.04},
+      "weight": {"shipped_g": 500, "delivered_g": 498},
+      "delivery_signature": true,
+      "device_fingerprint_match": true,
+      "defect_ticket_open": false,
+      "delivery_type": "STANDARD"
+    }
+  },
+  {
+    "id": "GT-014",
+    "dispute_id": "disp_eval_014",
+    "amount": 15000.0,
+    "expected_decision": "AUTO_CONTESTED",
+    "expected_min_score": 80.0,
+    "category": "obd_clean_high_value",
+    "delivery_type": "OPEN_BOX",
+    "reason_code": "product_not_received",
+    "telemetry": {
+      "otp": {"verified": true},
+      "geofence": {"distance_km": 0.06},
+      "weight": {"shipped_g": 1500, "delivered_g": 1498},
+      "delivery_signature": true,
+      "device_fingerprint_match": true,
+      "defect_ticket_open": false,
+      "delivery_type": "OPEN_BOX"
+    }
+  },
+  {
+    "id": "GT-015",
+    "dispute_id": "disp_eval_015",
+    "amount": 4800.0,
+    "expected_decision": "NEEDS_REVIEW",
+    "category": "secondary_perimeter",
+    "telemetry": {
+      "otp": {"verified": false},
+      "geofence": {"distance_km": 0.35},
+      "weight": {"shipped_g": 700, "delivered_g": 695},
+      "delivery_signature": true,
+      "device_fingerprint_match": true,
       "defect_ticket_open": false
     }
   }
