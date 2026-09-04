@@ -3,7 +3,7 @@ import { NavLink } from "react-router-dom";
 
 export const Sidebar: React.FC = () => {
   return (
-    <aside className="w-64 min-h-screen bg-gradient-to-b from-[#07162c] via-[#0a0e1a] to-[#070b14] border-r border-slate-800/80 flex flex-col fixed top-0 left-0 z-40">
+    <aside className="w-64 shrink-0 h-screen sticky top-0 bg-gradient-to-b from-[#07162c] via-[#0a0e1a] to-[#070b14] border-r border-slate-800/80 flex flex-col z-30">
       {/* Brand Header */}
       <div className="p-6 border-b border-slate-800/70">
         <div className="flex items-center gap-3">
