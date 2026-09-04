@@ -39,3 +39,6 @@ pyrightconfig.json
 *.swo
 .DS_Store
 Thumbs.db
+
+# Postman Collections
+*collection.json
