@@ -102,7 +102,6 @@ dispute-defender/
 │   ├── tailwind.config.js          # Tailwind CSS design system configuration
 │   ├── tsconfig.json               # TypeScript configuration
 │   └── vite.config.ts              # Vite bundler & API proxy configuration
-├── pyrightconfig.json              # Python language server path configuration
 └── README.md
 ```
 

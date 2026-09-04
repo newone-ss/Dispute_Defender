@@ -1,8 +1,0 @@
-{
-  "include": [
-    "backend"
-  ],
-  "extraPaths": [
-    "backend"
-  ]
-}

@@ -33,9 +33,8 @@ pnpm-debug.log*
 
 # IDE & OS
 .vscode/
-!.vscode/extensions.json
-!.vscode/settings.json
 .idea/
+pyrightconfig.json
 *.swp
 *.swo
 .DS_Store
