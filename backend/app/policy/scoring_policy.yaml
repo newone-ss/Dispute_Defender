@@ -1,0 +1,34 @@
+# ==============================================================================
+# Declarative Scoring Policy & Consumer Fairness Thresholds
+# ==============================================================================
+policy_version: "2026.1.0"
+updated_at: "2026-09-04T00:00:00Z"
+governance_signoff: "Risk Policy Committee"
+
+# Financial penalty incurred by merchant on lost or bad-faith chargebacks
+bank_penalty_fee_inr: 1500.0
+
+# Scoring rubric weights (sums to 100 max)
+weights:
+  otp_verified: 35.0
+  geofence_match: 30.0
+  weight_delta_ok: 20.0
+  delivery_signature: 10.0
+  device_fingerprint: 5.0
+
+# GPS Geofence precision brackets (in meters)
+geofence:
+  primary_radius_m: 100.0      # Full 30 pts if <= 100m
+  secondary_radius_m: 500.0    # 80% points (24 pts) if <= 500m
+  tertiary_radius_m: 2000.0    # Linear falloff to 0 pts between 500m and 2000m
+
+# Weight reconciliation brackets (origin hub scale vs doorstep scale)
+weight:
+  clean_tolerance_pct: 5.0     # Full 20 pts if delta <= 5%
+  max_tolerance_pct: 15.0      # Scaled points between 5% and 15%
+  fairness_weight_loss_g: 100.0 # Loss > 100g triggers Consumer Fairness Gate
+
+# Final action cutoffs based on cumulative score (0-100)
+thresholds:
+  auto_contest_min_score: 80
+  needs_review_min_score: 40
