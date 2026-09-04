@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { fetchMetrics, fetchDisputes, simulateWebhook, manualOverride } from "../lib/api";
+import { fetchMetrics, fetchDisputes, simulateWebhook, manualOverride, fetchHealth } from "../lib/api";
 import type { Metrics, Dispute, SimulationScenario } from "../lib/api";
 import { MetricCards } from "../components/MetricCards";
 import { TelemetryBadge } from "../components/TelemetryBadge";
@@ -12,13 +12,21 @@ export const Dashboard: React.FC = () => {
   const [simulating, setSimulating] = useState(false);
   const [selectedDispute, setSelectedDispute] = useState<Dispute | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [isMockMode, setIsMockMode] = useState(true);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const [m, d] = await Promise.all([fetchMetrics(), fetchDisputes(undefined, undefined, 0, 8)]);
+      const [m, d, h] = await Promise.all([
+        fetchMetrics(),
+        fetchDisputes(undefined, undefined, 0, 8),
+        fetchHealth().catch(() => ({ mock_mode: true })),
+      ]);
       setMetrics(m);
       setRecentDisputes(d.disputes);
+      if (h && typeof h.mock_mode === "boolean") {
+        setIsMockMode(h.mock_mode);
+      }
     } catch (err: any) {
       console.error("Failed to load dashboard data:", err);
     } finally {
@@ -46,11 +54,11 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  const handleManualOverride = async (disputeId: string) => {
+  const handleManualOverride = async (disputeId: string, operatorNote?: string) => {
     try {
-      await manualOverride(disputeId);
+      await manualOverride(disputeId, "contest", operatorNote || "Verified physical courier telemetry & signed manifest");
       await loadData();
-      if (selectedDispute && selectedDispute.dispute_id === disputeId) {
+      if (selectedDispute && (selectedDispute.dispute_id === disputeId || selectedDispute.razorpay_dispute_id === disputeId)) {
         setSelectedDispute((prev) => (prev ? { ...prev, status: "MANUALLY_CONTESTED" } : null));
       }
     } catch (err: any) {
@@ -60,6 +68,24 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-fade-in max-w-7xl mx-auto pb-12">
+      {/* Safety Interlock Banner */}
+      {isMockMode && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex items-center justify-between text-amber-300 shadow-lg shadow-amber-500/5">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">⚠️</span>
+            <div>
+              <strong className="text-xs font-bold tracking-wider uppercase">Safety Interlock: MOCK MODE ACTIVE</strong>
+              <p className="text-[11px] text-amber-400/80 mt-0.5">
+                Razorpay API and NPCI representments are operating in deterministic mock simulation mode. Real merchant accounts will not be charged or penalized.
+              </p>
+            </div>
+          </div>
+          <span className="px-2.5 py-1 rounded-md text-[10px] font-mono font-bold bg-amber-500/20 text-amber-200 border border-amber-500/30">
+            SIMULATION ONLY
+          </span>
+        </div>
+      )}
+
       {/* Top Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>

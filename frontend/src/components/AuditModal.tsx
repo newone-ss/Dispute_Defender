@@ -6,7 +6,7 @@ import { TelemetryBadge } from "./TelemetryBadge";
 interface AuditModalProps {
   dispute: Dispute | null;
   onClose: () => void;
-  onManualOverride?: (disputeId: string) => Promise<void>;
+  onManualOverride?: (disputeId: string, operatorNote?: string) => Promise<void>;
 }
 
 export const AuditModal: React.FC<AuditModalProps> = ({
@@ -54,9 +54,14 @@ export const AuditModal: React.FC<AuditModalProps> = ({
 
   const handleOverrideClick = async () => {
     if (!onManualOverride) return;
+    const note = window.prompt("Enter Operator Note for Manual Contest Audit Trail:", "Verified courier telemetry & signed manifest");
+    if (!note || !note.trim()) {
+      alert("Operator note is required to perform an override.");
+      return;
+    }
     setOverriding(true);
     try {
-      await onManualOverride(dispute.dispute_id);
+      await onManualOverride(dispute.dispute_id, note.trim());
     } finally {
       setOverriding(false);
     }
@@ -68,16 +73,6 @@ export const AuditModal: React.FC<AuditModalProps> = ({
       ocrData = JSON.parse(dispute.ocr_manifest_json);
     } catch {}
   }
-
-  let ragChats: any[] = [];
-  if (dispute.rag_fairness_summary) {
-    // Try to parse matched chats from the summary or raw_telemetry
-    try {
-      const raw = dispute.raw_telemetry ? JSON.parse(dispute.raw_telemetry) : {};
-      ragChats = raw.rag_matched_chats || [];
-    } catch {}
-  }
-
   const score = dispute.confidence_score ?? 0;
   const isOBD = (dispute.delivery_type || "").toUpperCase() === "OPEN_BOX";
   const geoM = dispute.geofence_distance_m ?? (dispute.geofence_distance_km != null ? dispute.geofence_distance_km * 1000 : null);

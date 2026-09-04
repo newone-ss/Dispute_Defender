@@ -35,12 +35,12 @@ export const Disputes: React.FC = () => {
     loadDisputes();
   }, [statusFilter, searchTerm]);
 
-  const handleManualOverride = async (disputeId: string) => {
+  const handleManualOverride = async (disputeId: string, operatorNote?: string) => {
     setOverridingId(disputeId);
     try {
-      await manualOverride(disputeId);
+      await manualOverride(disputeId, "contest", operatorNote || "Verified physical courier telemetry & signed manifest");
       await loadDisputes();
-      if (selectedDispute && selectedDispute.dispute_id === disputeId) {
+      if (selectedDispute && (selectedDispute.dispute_id === disputeId || selectedDispute.razorpay_dispute_id === disputeId)) {
         setSelectedDispute((prev) => (prev ? { ...prev, status: "MANUALLY_CONTESTED" } : null));
       }
     } catch (err: any) {
