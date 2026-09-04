@@ -10,3 +10,5 @@ razorpay>=1.4.1
 python-multipart>=0.0.6
 chromadb>=0.4.22
 pyyaml>=6.0.1
+langchain-google-genai>=2.0.0
+langchain-openai>=0.2.0
