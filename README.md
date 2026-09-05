@@ -100,10 +100,9 @@
 
 ## 🏗️ Monorepo Structure
 
-```text
+
 <img width="432" height="552" alt="image" src="https://github.com/user-attachments/assets/5ec4cecb-709c-4849-91d2-3e89196f3767" />
 
-```
 
 ---
 
