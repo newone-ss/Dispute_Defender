@@ -101,7 +101,37 @@
 ## 🏗️ Monorepo Structure
 
 
-<img width="2470" height="2267" alt="image" src="https://github.com/user-attachments/assets/04fd3005-9694-4802-828f-32ec828b342b" />
+flowchart TD
+    subgraph Ingestion["1. Ingestion & Security (<25ms)"]
+        RZP[Razorpay Webhook / Simulator] -->|POST /api/v1/webhook| WH["Webhook Ingestion Layer<br/>(HMAC-SHA256 Verification & Idempotency)"]
+        WH -->|Atomic Insert| DB_DISPUTES[("SQLite WAL: disputes")]
+        WH -->|Atomic Enqueue| DB_JOBS[("SQLite WAL: audit_jobs")]
+    end
+
+    subgraph DurableQueue["2. Durable Asynchronous Queue"]
+        DB_JOBS -->|Atomic Lease Lock| WORKER["Audit Worker Daemon<br/>(audit_worker.py)"]
+    end
+
+    subgraph Pipeline["3. Audit & Decision Pipeline"]
+        WORKER --> OCR["Restricted OCR Extractor<br/>(Gemini Flash + Regex Fallback)"]
+        OCR --> SCORE["Pure Telemetry Scoring Engine<br/>(OTP, Geofence, Weight, POD, Fingerprint)"]
+        SCORE --> RAG["Hybrid Vector Retrieval (ChromaDB)<br/>• Customer Support Chats (Zendesk)<br/>• Regulatory Rulebooks (NPCI / Visa)"]
+        RAG --> GATE["Consumer Fairness Gate<br/>• Open Defect Ticket?<br/>• Transit Weight Loss > 100g?<br/>• Prior Chat Complaint?"]
+        GATE --> ROUTER{"Master Decision Router"}
+    end
+
+    subgraph Actions["4. Execution & Settlement"]
+        ROUTER -->|Score < 40 or Gate Triggered| ACCEPT["Release Liability (AUTO_ACCEPT)<br/>Calls Razorpay Accept API<br/>Saves ₹1,500 Bank Penalty Fee"]
+        ROUTER -->|Score 40-79 or Ambiguous| REVIEW["Operator Review Queue<br/>(NEEDS_REVIEW)"]
+        ROUTER -->|Score >= 80 & Clean Delivery| CONTEST["NPCI UDIR Evidence Compiler<br/>(Jinja2 + SHA-256 Digest)"]
+        CONTEST --> RZP_UPLOAD["Razorpay Documents API<br/>(POST /v1/documents)"]
+        RZP_UPLOAD --> RZP_CONTEST["Razorpay Contest API<br/>(PATCH /v1/disputes/{id}/contest)"]
+    end
+
+    subgraph Client["5. Presentation Layer"]
+        FRONTEND["React 19 + Vite 6 Dashboard<br/>• Executive KPI Metrics<br/>• 8-Tab Deep Audit Dossier<br/>• Interactive Scenario Simulator"] <-->|REST API / Metrics| API["FastAPI Dashboard Endpoints<br/>(dashboard.py)"]
+        API <--> DB_DISPUTES
+    end
 
 
 
