@@ -21,8 +21,10 @@ router = APIRouter(tags=["webhooks"])
 # Pydantic Schemas for Razorpay Webhook Payload
 # ---------------------------------------------------------------------------
 
+
 class DisputeEntity(BaseModel):
     """Inner dispute entity provided by Razorpay webhook."""
+
     id: Optional[str] = None
     payment_id: Optional[str] = None
     reason_code: Optional[str] = None
@@ -31,16 +33,19 @@ class DisputeEntity(BaseModel):
 
 class DisputePayload(BaseModel):
     """Container wrapping the dispute entity."""
+
     entity: Optional[DisputeEntity] = None
 
 
 class WebhookPayloadContainer(BaseModel):
     """Outer container for Razorpay event payloads."""
+
     dispute: Optional[DisputePayload] = None
 
 
 class RazorpayWebhookPayload(BaseModel):
     """Full Razorpay Webhook event payload supporting nested & flat structures."""
+
     event: Optional[str] = "payment.dispute.created"
     payload: Optional[WebhookPayloadContainer] = None
 
@@ -71,6 +76,7 @@ class RazorpayWebhookPayload(BaseModel):
 # ---------------------------------------------------------------------------
 # Background Task AI Logic
 # ---------------------------------------------------------------------------
+
 
 def process_dispute_background(
     dispute_id: str,
@@ -125,7 +131,9 @@ def process_dispute_background(
         )
     except Exception as exc:
         db.rollback()
-        logger.error(f"[BackgroundTask] Failed to process dispute '{dispute_id}': {exc}", exc_info=True)
+        logger.error(
+            f"[BackgroundTask] Failed to process dispute '{dispute_id}': {exc}", exc_info=True
+        )
     finally:
         db.close()
 
@@ -133,6 +141,7 @@ def process_dispute_background(
 # ---------------------------------------------------------------------------
 # Webhook Ingestion Route
 # ---------------------------------------------------------------------------
+
 
 @router.post("/webhook/razorpay")
 async def razorpay_webhook(

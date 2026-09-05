@@ -3,7 +3,7 @@
 import logging
 import os
 import random
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel
@@ -23,6 +23,7 @@ router = APIRouter(tags=["disputes"])
 # ---------------------------------------------------------------------------
 class TelemetryCreate(BaseModel):
     """Payload to register or update courier doorstep telemetry for a payment."""
+
     payment_id: str
     delivery_type: Optional[str] = "STANDARD"
     otp_verified: bool = True
@@ -31,17 +32,20 @@ class TelemetryCreate(BaseModel):
 
 class EvaluateDisputeRequest(BaseModel):
     """Payload to trigger LLM dispute fairness assessment."""
+
     dispute_text: str
 
 
 class ManualOverrideRequest(BaseModel):
     """Payload for human risk operator decision override."""
+
     action: str
     operator_note: Optional[str] = "Manual operator override"
 
 
 class SimulateRequest(BaseModel):
     """Payload to inject synthetic dispute scenarios."""
+
     scenario: Optional[str] = "winnable_clean"
     reason_code: Optional[str] = "product_not_received"
     amount_inr: Optional[float] = 2499.0
@@ -54,9 +58,15 @@ class SimulateRequest(BaseModel):
 def get_metrics(db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Retrieve financial metrics, dispute breakdown, and protected amounts."""
     total = db.query(func.count(Dispute.id)).scalar() or 0
-    contested_count = db.query(func.count(Dispute.id)).filter(Dispute.status == "contested").scalar() or 0
-    needs_review_count = db.query(func.count(Dispute.id)).filter(Dispute.status == "needs_review").scalar() or 0
-    under_review_count = db.query(func.count(Dispute.id)).filter(Dispute.status == "under_review").scalar() or 0
+    contested_count = (
+        db.query(func.count(Dispute.id)).filter(Dispute.status == "contested").scalar() or 0
+    )
+    needs_review_count = (
+        db.query(func.count(Dispute.id)).filter(Dispute.status == "needs_review").scalar() or 0
+    )
+    under_review_count = (
+        db.query(func.count(Dispute.id)).filter(Dispute.status == "under_review").scalar() or 0
+    )
 
     total_amount_paise = db.query(func.coalesce(func.sum(Dispute.amount), 0)).scalar() or 0
     contested_amount_paise = (
@@ -85,7 +95,9 @@ def get_metrics(db: Session = Depends(get_db)) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 @router.get("/disputes")
 def list_disputes(
-    status: Optional[str] = Query(None, description="Filter by status (e.g., contested, needs_review)"),
+    status: Optional[str] = Query(
+        None, description="Filter by status (e.g., contested, needs_review)"
+    ),
     search: Optional[str] = Query(None, description="Search by dispute_id or payment_id"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),

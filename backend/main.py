@@ -1,96 +1,14 @@
-"""FastAPI application entrypoint for Razorpay Dispute Defender."""
+"""Root FastAPI entrypoint for Razorpay Dispute Defender.
 
-import logging
-from contextlib import asynccontextmanager
+Re-exports the application factory and app instance from `app.main` for clean CLI invocations
+(e.g., `uvicorn main:app` or `python main.py`).
+"""
 
 import uvicorn
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
 
-from api.disputes import router as disputes_router
-from api.webhook import router as webhook_router
-from core.database import Base, SessionLocal, engine
-import data.models  # Ensures Dispute & Telemetry models register on Base.metadata
+from app.main import app, create_app
 
-logger = logging.getLogger("main")
-if not logger.handlers:
-    logging.basicConfig(level=logging.INFO)
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan context: creates DB tables on startup."""
-    logger.info("Initializing SQLite database tables...")
-    Base.metadata.create_all(bind=engine)
-    logger.info("Database tables initialized successfully.")
-    yield
-    logger.info("Shutting down Razorpay Dispute Defender.")
-
-
-# Initialize the FastAPI app
-app = FastAPI(
-    title="Razorpay Dispute Defender",
-    description="Chargeback Resolution AI with Courier Telemetry & Automated Dispute Contestation",
-    version="1.0.0",
-    lifespan=lifespan,
-)
-
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Mount API routers (root and /api prefixes)
-app.include_router(webhook_router)
-app.include_router(webhook_router, prefix="/api")
-
-app.include_router(disputes_router)
-app.include_router(disputes_router, prefix="/api")
-
-
-# ---------------------------------------------------------------------------
-# Health Check Endpoints
-# ---------------------------------------------------------------------------
-@app.get("/", tags=["health"])
-def root_check():
-    """Root endpoint for status check."""
-    return {
-        "status": "healthy",
-        "service": "Razorpay Dispute Defender",
-        "endpoints": [
-            "/webhook/razorpay",
-            "/disputes",
-            "/metrics",
-            "/healthz",
-            "/docs",
-        ],
-    }
-
-
-@app.get("/healthz", tags=["health"])
-def health_check():
-    """Deep health check verifying SQLite database connectivity."""
-    db_ok = False
-    db = SessionLocal()
-    try:
-        db.execute(text("SELECT 1"))
-        db_ok = True
-    except Exception as err:
-        logger.warning(f"Database health check failed: {err}")
-    finally:
-        db.close()
-
-    return {
-        "status": "healthy" if db_ok else "degraded",
-        "database": "reachable" if db_ok else "unreachable",
-        "service": "Razorpay Dispute Defender",
-    }
-
+__all__ = ["app", "create_app"]
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

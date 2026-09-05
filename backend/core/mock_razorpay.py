@@ -13,7 +13,7 @@ class MockRazorpayClient:
 
     def upload_evidence_document(self, file_path: str) -> str:
         """Simulate uploading an evidence document to Razorpay.
-        
+
         Args:
             file_path: Local or relative path to the generated evidence file.
 
@@ -29,7 +29,7 @@ class MockRazorpayClient:
 
     def contest_dispute(self, dispute_id: str, document_id: str) -> dict:
         """Simulate contesting a chargeback dispute on Razorpay.
-        
+
         Args:
             dispute_id: The Razorpay dispute identifier.
             document_id: The identifier of the uploaded evidence document.

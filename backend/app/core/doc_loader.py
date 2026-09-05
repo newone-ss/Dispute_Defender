@@ -39,9 +39,7 @@ def chunk_text(text: str, chunk_size: int = 400, overlap: int = 60) -> List[str]
     return chunks or [text.strip()]
 
 
-def load_policy_documents(
-    client: Optional[ClientAPI] = None, force_reindex: bool = False
-) -> int:
+def load_policy_documents(client: Optional[ClientAPI] = None, force_reindex: bool = False) -> int:
     """Ingest Visa CE 3.0 and NPCI UDIR regulatory texts into ChromaDB."""
     client = client or get_chroma_client()
     if force_reindex:

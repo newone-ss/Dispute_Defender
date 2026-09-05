@@ -7,7 +7,7 @@ import os
 from typing import Generator
 
 from sqlalchemy import create_engine, event
-from sqlalchemy.orm import declarative_base, sessionmaker, Session
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 # Ensure the SQLite storage directory exists
 DB_DIR = os.path.join(".", "data", "mock_db")

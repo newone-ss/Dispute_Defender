@@ -1,14 +1,11 @@
 """Unit tests for the new AI Engine (Gemini embeddings, dual LLM, and dispute fairness evaluation)."""
 
-import pytest
-from core.ai_engine import (
+from app.core.ai_engine import (
     GeminiChromaEmbeddingFunction,
     embeddings,
     evaluate_dispute_fairness,
     gemini_llm,
     get_embeddings,
-    get_gemini_llm,
-    get_openrouter_llm,
     llm_gemini,
     llm_openrouter,
     openrouter_llm,
@@ -35,7 +32,10 @@ def test_dual_llm_configuration():
     # LLM 2: OpenRouter
     assert openrouter_llm is not None
     assert openrouter_llm.openai_api_base == "https://openrouter.ai/api/v1"
-    assert openrouter_llm.model_name in ("meta-llama/llama-3.8b-instruct:free", "liquid/lfm-2.5-2.6b:free")
+    assert openrouter_llm.model_name in (
+        "meta-llama/llama-3.8b-instruct:free",
+        "liquid/lfm-2.5-2.6b:free",
+    )
     assert llm_openrouter is openrouter_llm
 
 

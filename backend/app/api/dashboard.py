@@ -92,7 +92,7 @@ def get_metrics(db: Session = Depends(get_db)) -> MetricsOut:
 
 @router.get("/disputes", response_model=DisputeListOut)
 def list_disputes(
-    status_filter: Optional[DisputeStatus] = Query(None, alias="status"),
+    status_filter: Optional[str] = Query(None, alias="status"),
     search: Optional[str] = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
@@ -100,9 +100,14 @@ def list_disputes(
 ) -> DisputeListOut:
     """Return paginated disputes with optional status and text search filters."""
     query = db.query(Dispute)
-    if status_filter:
-        query = query.filter(Dispute.status == status_filter)
-    if search:
+    if status_filter and status_filter.strip().upper() != "ALL":
+        target_str = status_filter.strip().upper()
+        try:
+            target_status = DisputeStatus(target_str)
+            query = query.filter(Dispute.status == target_status)
+        except ValueError:
+            query = query.filter(Dispute.status == target_str)
+    if search and search.strip():
         s = f"%{search.strip()}%"
         query = query.filter(
             (Dispute.razorpay_dispute_id.ilike(s))
