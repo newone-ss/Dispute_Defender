@@ -45,6 +45,12 @@ def verify_signature(raw_body: bytes, signature_header: Optional[str]) -> bool:
     status_code=status.HTTP_200_OK,
     summary="Ingest Razorpay chargeback webhooks in sub-25ms with HMAC verification",
 )
+@router.post(
+    "/webhook/razorpay",
+    response_model=WebhookResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Ingest Razorpay chargeback webhooks (alias for /webhook/razorpay)",
+)
 async def ingest_webhook(
     request: Request,
     db: Session = Depends(get_db),
