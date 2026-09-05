@@ -58,11 +58,11 @@
    - Calls Razorpay's Accept API (`POST /v1/disputes/{id}/accept`) to release liability and avoid the **₹1,500 bank penalty fee** charged on lost chargeback contests.
 
 3. **Deterministic NPCI UDIR & Visa Representment Assembly:**
-   - Bank representment documents are generated via Jinja2 (`backend/data/templates/npci_udir_packet.md.j2`), adhering strictly to NPCI Unified Dispute and Issue Resolution (UDIR) compliance without LLM hallucinations.
+   - Bank representment documents are generated via Jinja2 (`backend/app/templates/npci_udir_packet.md.j2`), adhering strictly to NPCI Unified Dispute and Issue Resolution (UDIR) compliance without LLM hallucinations.
    - Uploads evidence to Razorpay Documents API (`POST /v1/documents`, purpose `dispute_evidence`) and contests via `PATCH /v1/disputes/{id}/contest` with `action: "submit"`.
 
 4. **Restricted LLM Scope:**
-   - LLMs and Vision models are strictly isolated to `core/ocr_extractor.py` for parsing messy, unstructured scanned delivery manifests into typed Pydantic models. Includes deterministic fallback regex parser for offline/test resilience.
+   - LLMs and Vision models are strictly isolated to `app/core/ocr_extractor.py` for parsing messy, unstructured scanned delivery manifests into typed Pydantic models. Includes deterministic fallback regex parser for offline/test resilience.
 
 5. **Non-blocking Webhook Ingestion & Durable Queue:**
    - `POST /api/v1/webhook` (and `/webhook`) validates HMAC-SHA256 signatures, deduplicates idempotency keys, and commits an atomic `AuditJob` in < 25ms. A standalone queue worker daemon processes jobs asynchronously with atomic SQLite leases.
