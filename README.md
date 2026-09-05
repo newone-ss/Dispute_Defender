@@ -101,7 +101,7 @@
 ## 🏗️ Monorepo Structure
 
 
-```
+```mermaid
 flowchart TD
     subgraph Ingestion["1. Ingestion & Security (<25ms)"]
         RZP[Razorpay Webhook / Simulator] -->|POST /api/v1/webhook| WH["Webhook Ingestion Layer<br/>(HMAC-SHA256 Verification & Idempotency)"]
