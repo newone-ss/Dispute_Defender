@@ -120,6 +120,7 @@ def list_disputes(
 
 
 @router.get("/disputes/{dispute_id}", response_model=DisputeOut)
+@router.get("/audit/{dispute_id}", response_model=DisputeOut)
 def get_dispute(dispute_id: str, db: Session = Depends(get_db)) -> DisputeOut:
     """Retrieve full audit detail, telemetry, and evidence packet for a single dispute."""
     d = db.query(Dispute).filter(Dispute.razorpay_dispute_id == dispute_id).first()

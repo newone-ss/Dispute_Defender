@@ -11,8 +11,9 @@ export function useDisputes() {
   const query = useQuery({
     queryKey: ["disputes", { search, status, sortBy, sortOrder }],
     queryFn: () => getDisputes({ search, status }),
-    staleTime: 1000 * 20,
-    refetchOnWindowFocus: false,
+    staleTime: 1000 * 2, // 2 seconds freshness
+    refetchInterval: 3000, // Auto-poll every 3 seconds for real-time live ingestion
+    refetchOnWindowFocus: true, // Instantly refresh when returning from Postman
   });
 
   const rawData = query.data;

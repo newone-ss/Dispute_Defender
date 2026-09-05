@@ -7,14 +7,15 @@ import logging
 import time
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.config import get_config
-from app.core.database import get_db
+from app.core.database import SessionLocal, get_db
 from app.core.models import AuditJob, Dispute, DisputeStatus, JobStatus
 from app.core.schemas import WebhookResponse
+from app.workers.audit_worker import process_dispute
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["webhooks"])
@@ -53,6 +54,7 @@ def verify_signature(raw_body: bytes, signature_header: Optional[str]) -> bool:
 )
 async def ingest_webhook(
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     x_razorpay_signature: Optional[str] = Header(None, alias="X-Razorpay-Signature"),
     x_razorpay_event_id: Optional[str] = Header(None, alias="X-Razorpay-Event-Id"),
@@ -96,8 +98,11 @@ async def ingest_webhook(
     if amount_paise is None:
         amount_paise = int(float(payload.get("amount", 2499.0)) * 100)
 
-    # 4. Deterministic idempotency key
-    idempotency_key = x_razorpay_event_id or f"{dispute_id}:{created_at_raw}"
+    # 4. Deterministic idempotency key scoped per dispute to prevent cross-dispute header collisions
+    if x_razorpay_event_id:
+        idempotency_key = f"{dispute_id}:{x_razorpay_event_id}"
+    else:
+        idempotency_key = f"{dispute_id}:{created_at_raw}"
 
     # 5. Atomic persist: Dispute + AuditJob within single transaction
     decision = "inserted"
@@ -129,10 +134,23 @@ async def ingest_webhook(
         db.add(audit_job)
         db.commit()
 
-    except IntegrityError:
+        # Instantly run scoring & evidence compilation in background
+        def _run_audit(disp_id: str):
+            with SessionLocal() as session:
+                try:
+                    process_dispute(disp_id, session)
+                except Exception as ex:
+                    logger.warning(f"Background audit processing error for {disp_id}: {ex}")
+
+        background_tasks.add_task(_run_audit, dispute_id)
+
+    except IntegrityError as err:
         # Idempotency hit: already processed this key or duplicate dispute
         db.rollback()
         decision = "duplicate"
+        logger.info(
+            f"Duplicate webhook or idempotency hit: dispute={dispute_id} key={idempotency_key} err={err}"
+        )
 
     latency_ms = round((time.perf_counter() - start_time) * 1000.0, 2)
     logger.info(

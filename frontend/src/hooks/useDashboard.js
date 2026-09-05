@@ -5,7 +5,8 @@ export function useDashboard() {
   return useQuery({
     queryKey: ["dashboard-metrics"],
     queryFn: getDashboard,
-    staleTime: 1000 * 30, // 30 seconds
-    refetchOnWindowFocus: false,
+    staleTime: 1000 * 3, // 3 seconds
+    refetchInterval: 5000, // Poll every 5s for live ROI/dispute metrics
+    refetchOnWindowFocus: true, // Instantly refresh when returning from Postman
   });
 }
