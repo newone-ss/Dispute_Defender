@@ -101,6 +101,7 @@
 ## 🏗️ Monorepo Structure
 
 
+```
 flowchart TD
     subgraph Ingestion["1. Ingestion & Security (<25ms)"]
         RZP[Razorpay Webhook / Simulator] -->|POST /api/v1/webhook| WH["Webhook Ingestion Layer<br/>(HMAC-SHA256 Verification & Idempotency)"]
@@ -132,6 +133,7 @@ flowchart TD
         FRONTEND["React 19 + Vite 6 Dashboard<br/>• Executive KPI Metrics<br/>• 8-Tab Deep Audit Dossier<br/>• Interactive Scenario Simulator"] <-->|REST API / Metrics| API["FastAPI Dashboard Endpoints<br/>(dashboard.py)"]
         API <--> DB_DISPUTES
     end
+```
 
 
 
